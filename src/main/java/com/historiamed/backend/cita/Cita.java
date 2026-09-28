@@ -60,6 +60,11 @@ public class Cita extends EntidadBase {
 	@Column(name = "numero_turno")
 	private Integer numeroTurno;
 
+	/** Se asigna en el triaje; ordena la cola del médico. */
+	@Setter(AccessLevel.NONE)
+	@Enumerated(EnumType.STRING)
+	private Prioridad prioridad;
+
 	@Setter(AccessLevel.NONE)
 	@Column(name = "llegada_en")
 	private Instant llegadaEn;
@@ -93,6 +98,12 @@ public class Cita extends EntidadBase {
 		if (llegoSinCita) {
 			this.llegadaEn = ahora;
 		}
+	}
+
+	/** El triaje terminó: el paciente pasa a esperar al médico con la prioridad asignada. */
+	public void completarTriaje(Prioridad prioridadAsignada, Instant ahora) {
+		cambiarEstado(EstadoCita.EN_ESPERA_CONSULTA, ahora);
+		this.prioridad = prioridadAsignada;
 	}
 
 	/**

@@ -93,6 +93,12 @@ public class CitaService {
 		return CitaResponse.de(obtener(id));
 	}
 
+	/** Para otros módulos (triaje, consulta) que operan sobre la cita dentro de su propia transacción. */
+	@Transactional(readOnly = true)
+	public Cita obtenerEntidad(Long id) {
+		return obtener(id);
+	}
+
 	@Transactional
 	public CitaResponse programar(CitaRequest req) {
 		Paciente paciente = pacienteActivo(req.pacienteId());
