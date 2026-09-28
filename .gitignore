@@ -34,3 +34,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Documentos subidos (datos de pacientes) ###
+uploads/

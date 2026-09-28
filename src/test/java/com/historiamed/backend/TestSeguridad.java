@@ -37,7 +37,8 @@ public final class TestSeguridad {
 				new HistoriaMedProperties.Jwt("secreto-de-prueba-con-mas-de-32-caracteres", 15, 7),
 				new HistoriaMedProperties.Seguridad(5, 15, false),
 				new HistoriaMedProperties.Cors(List.of("http://localhost:5173")),
-				new HistoriaMedProperties.AdminInicial("", ""));
+				new HistoriaMedProperties.AdminInicial("", ""),
+				new HistoriaMedProperties.Almacenamiento("uploads"));
 	}
 
 }

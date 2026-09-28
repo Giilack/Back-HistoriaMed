@@ -19,6 +19,8 @@ public enum AccionAuditoria {
 	DESACTIVAR,
 	RESETEAR_PASSWORD,
 	/** Firma de una atención médica: desde ese momento es inmutable. */
-	CERRAR
+	CERRAR,
+	/** Visualización o descarga del contenido de un documento clínico. */
+	DESCARGAR
 
 }

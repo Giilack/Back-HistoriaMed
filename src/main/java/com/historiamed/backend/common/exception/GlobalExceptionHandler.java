@@ -16,6 +16,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import com.historiamed.backend.auth.CredencialesInvalidasException;
 import com.historiamed.backend.common.dto.ErrorResponse;
@@ -70,6 +72,17 @@ public class GlobalExceptionHandler {
 			PropertyReferenceException.class })
 	ResponseEntity<ErrorResponse> peticionInvalida(Exception ex, HttpServletRequest req) {
 		return respuesta(HttpStatus.BAD_REQUEST, "PETICION_INVALIDA", "La petición tiene un formato inválido", req);
+	}
+
+	@ExceptionHandler(MaxUploadSizeExceededException.class)
+	ResponseEntity<ErrorResponse> archivoMuyGrande(MaxUploadSizeExceededException ex, HttpServletRequest req) {
+		return respuesta(HttpStatus.CONTENT_TOO_LARGE, "ARCHIVO_MUY_GRANDE", "El archivo supera el máximo de 10 MB",
+				req);
+	}
+
+	@ExceptionHandler(MissingServletRequestPartException.class)
+	ResponseEntity<ErrorResponse> archivoFaltante(MissingServletRequestPartException ex, HttpServletRequest req) {
+		return respuesta(HttpStatus.BAD_REQUEST, "PETICION_INVALIDA", "Adjunte el archivo", req);
 	}
 
 	/** Respaldo para duplicados que llegan a la BD (por ejemplo, dos altas simultáneas con el mismo DNI). */
