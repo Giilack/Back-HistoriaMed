@@ -1,5 +1,8 @@
 HELP.md
 target/
+
+### Credenciales locales ###
+.env
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
