@@ -1,5 +1,7 @@
 package com.historiamed.backend.usuario;
 
+import java.util.List;
+
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.historiamed.backend.common.dto.PaginaResponse;
+import com.historiamed.backend.usuario.dto.MedicoResponse;
 import com.historiamed.backend.usuario.dto.PasswordTemporalResponse;
 import com.historiamed.backend.usuario.dto.UsuarioActualizarRequest;
 import com.historiamed.backend.usuario.dto.UsuarioCrearRequest;
@@ -38,6 +41,13 @@ public class UsuarioController {
 			@RequestParam(required = false) Rol rol, @RequestParam(required = false) Boolean activo,
 			@PageableDefault(size = 20, sort = "apellidos", direction = Sort.Direction.ASC) Pageable pageable) {
 		return PaginaResponse.de(service.buscar(texto, rol, activo, pageable), UsuarioResponse::de);
+	}
+
+	/** Médicos activos, para programar citas y ver colas. Lo usan todos los roles. */
+	@GetMapping("/medicos")
+	@PreAuthorize("isAuthenticated()")
+	public List<MedicoResponse> medicos() {
+		return service.medicosActivos().stream().map(MedicoResponse::de).toList();
 	}
 
 	@GetMapping("/{id}")

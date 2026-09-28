@@ -2,24 +2,17 @@ package com.historiamed.backend.common.util;
 
 import java.time.LocalDate;
 import java.time.Period;
-import java.time.ZoneId;
 
 /**
  * Cálculo de edad en la zona horaria del establecimiento.
  */
 public final class Edad {
 
-	public static final ZoneId ZONA = ZoneId.of("America/Lima");
-
 	private Edad() {
 	}
 
-	public static LocalDate hoy() {
-		return LocalDate.now(ZONA);
-	}
-
 	public static int anios(LocalDate nacimiento) {
-		return Period.between(nacimiento, hoy()).getYears();
+		return Period.between(nacimiento, Tiempo.hoy()).getYears();
 	}
 
 	/**
@@ -37,7 +30,7 @@ public final class Edad {
 	}
 
 	public static String texto(LocalDate nacimiento) {
-		return texto(nacimiento, hoy());
+		return texto(nacimiento, Tiempo.hoy());
 	}
 
 	private static String plural(int n, String singular, String plural) {

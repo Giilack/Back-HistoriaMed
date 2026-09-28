@@ -19,6 +19,7 @@ import com.historiamed.backend.common.exception.RecursoNoEncontradoException;
 import com.historiamed.backend.common.exception.ReglaNegocioException;
 import com.historiamed.backend.common.security.UsuarioActual;
 import com.historiamed.backend.common.util.Edad;
+import com.historiamed.backend.common.util.Tiempo;
 import com.historiamed.backend.paciente.dto.FinanciamientoRequest;
 import com.historiamed.backend.paciente.dto.PacienteRequest;
 import com.historiamed.backend.paciente.dto.VerificacionSeguroRequest;
@@ -187,7 +188,7 @@ public class PacienteService {
 	}
 
 	private static void validarFechaNacimiento(LocalDate fecha) {
-		if (fecha.isAfter(Edad.hoy())) {
+		if (fecha.isAfter(Tiempo.hoy())) {
 			throw new ReglaNegocioException("La fecha de nacimiento no puede ser futura");
 		}
 		if (Edad.anios(fecha) > EDAD_MAXIMA) {

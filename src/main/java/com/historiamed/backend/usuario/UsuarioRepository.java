@@ -1,5 +1,6 @@
 package com.historiamed.backend.usuario;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -22,5 +23,7 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long>, JpaSpec
 	boolean existsByRol(Rol rol);
 
 	long countByRolAndActivoTrue(Rol rol);
+
+	List<Usuario> findByRolAndActivoTrueOrderByApellidosAscNombresAsc(Rol rol);
 
 }

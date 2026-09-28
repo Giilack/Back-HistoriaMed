@@ -1,5 +1,7 @@
 package com.historiamed.backend.usuario;
 
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -60,6 +62,21 @@ public class UsuarioService {
 	@Transactional(readOnly = true)
 	public Usuario obtener(Long id) {
 		return repository.findById(id).orElseThrow(() -> new RecursoNoEncontradoException("Usuario", id));
+	}
+
+	@Transactional(readOnly = true)
+	public List<Usuario> medicosActivos() {
+		return repository.findByRolAndActivoTrueOrderByApellidosAscNombresAsc(Rol.MEDICO);
+	}
+
+	/** Para asignar a una cita: debe ser un MEDICO activo. */
+	@Transactional(readOnly = true)
+	public Usuario obtenerMedicoActivo(Long id) {
+		Usuario u = obtener(id);
+		if (u.getRol() != Rol.MEDICO || !u.isActivo()) {
+			throw new ReglaNegocioException("El usuario indicado no es un médico activo");
+		}
+		return u;
 	}
 
 	@Transactional
