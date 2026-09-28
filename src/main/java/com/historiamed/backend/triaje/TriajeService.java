@@ -2,6 +2,7 @@ package com.historiamed.backend.triaje;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -116,6 +117,12 @@ public class TriajeService {
 			.orElseThrow(() -> new RecursoNoEncontradoException("Triaje de la cita", citaId));
 		auditoria.registrarSobrePaciente(AccionAuditoria.VER, RECURSO, t.getId(), t.getPaciente().getId(), null);
 		return TriajeResponse.de(t);
+	}
+
+	/** Motivo de consulta registrado en el triaje de la cita (uso interno, sin auditar como consulta). */
+	@Transactional(readOnly = true)
+	public Optional<String> motivoDeCita(Long citaId) {
+		return repository.findByCitaId(citaId).map(Triaje::getMotivoConsulta);
 	}
 
 	/** Últimos triajes del paciente (más recientes primero), para ver la evolución de sus signos vitales. */

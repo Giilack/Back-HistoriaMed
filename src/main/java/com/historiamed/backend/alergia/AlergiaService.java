@@ -42,6 +42,15 @@ public class AlergiaService {
 			.toList();
 	}
 
+	/** Alergias activas, para verificaciones internas (por ejemplo, al recetar). No se audita como consulta. */
+	@Transactional(readOnly = true)
+	public List<Alergia> activas(Long pacienteId) {
+		return repository.findByPacienteIdOrderByActivaDescCreadoEnDesc(pacienteId)
+			.stream()
+			.filter(Alergia::isActiva)
+			.toList();
+	}
+
 	@Transactional
 	public AlergiaResponse registrar(Long pacienteId, AlergiaRequest req) {
 		Paciente p = pacienteService.obtener(pacienteId);

@@ -37,7 +37,14 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(ReglaNegocioException.class)
 	ResponseEntity<ErrorResponse> reglaNegocio(ReglaNegocioException ex, HttpServletRequest req) {
-		return respuesta(HttpStatus.CONFLICT, "REGLA_DE_NEGOCIO", ex.getMessage(), req);
+		return ResponseEntity.status(HttpStatus.CONFLICT)
+			.body(new ErrorResponse(Instant.now(), HttpStatus.CONFLICT.value(), ex.getCodigo(), ex.getMessage(),
+					req.getRequestURI(), ex.getDetalles()));
+	}
+
+	@ExceptionHandler(AccesoProhibidoException.class)
+	ResponseEntity<ErrorResponse> accesoProhibido(AccesoProhibidoException ex, HttpServletRequest req) {
+		return respuesta(HttpStatus.FORBIDDEN, "ACCESO_DENEGADO", ex.getMessage(), req);
 	}
 
 	@ExceptionHandler(CredencialesInvalidasException.class)
