@@ -26,8 +26,22 @@ public class AuditoriaService {
 	 * llama: si la operación se revierte, su registro también (no se audita algo que no ocurrió).
 	 */
 	public void registrar(AccionAuditoria accion, String recurso, Object recursoId, String detalle) {
+		guardar(accion, recurso, recursoId, null, detalle);
+	}
+
+	/**
+	 * Registra una acción del usuario actual sobre datos de un paciente (misma transacción que {@link #registrar}).
+	 * Permite responder "¿quién vio o modificó a este paciente?".
+	 */
+	public void registrarSobrePaciente(AccionAuditoria accion, String recurso, Object recursoId, Long pacienteId,
+			String detalle) {
+		guardar(accion, recurso, recursoId, pacienteId, detalle);
+	}
+
+	private void guardar(AccionAuditoria accion, String recurso, Object recursoId, Long pacienteId, String detalle) {
 		UsuarioActual actor = UsuarioActual.obtener().orElse(new UsuarioActual(null, null, null));
-		registrarComo(actor.id(), actor.username(), actor.rol(), accion, recurso, recursoId, detalle);
+		repository.save(new RegistroAuditoria(actor.id(), actor.username(), actor.rol(), accion, recurso,
+				recursoId == null ? null : recursoId.toString(), pacienteId, detalle, ipActual()));
 	}
 
 	/**
@@ -42,11 +56,14 @@ public class AuditoriaService {
 	}
 
 	@Transactional(readOnly = true)
-	public Page<RegistroAuditoria> buscar(String username, AccionAuditoria accion, Instant desde, Instant hasta,
-			Pageable pageable) {
+	public Page<RegistroAuditoria> buscar(String username, AccionAuditoria accion, Long pacienteId, Instant desde,
+			Instant hasta, Pageable pageable) {
 		Specification<RegistroAuditoria> spec = Specification.unrestricted();
 		if (username != null && !username.isBlank()) {
 			spec = spec.and((root, query, cb) -> cb.equal(root.get("username"), username));
+		}
+		if (pacienteId != null) {
+			spec = spec.and((root, query, cb) -> cb.equal(root.get("pacienteId"), pacienteId));
 		}
 		if (accion != null) {
 			spec = spec.and((root, query, cb) -> cb.equal(root.get("accion"), accion));

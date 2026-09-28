@@ -31,10 +31,11 @@ public class AuditoriaController {
 	@GetMapping
 	public PaginaResponse<RegistroAuditoriaResponse> buscar(@RequestParam(required = false) String username,
 			@RequestParam(required = false) AccionAuditoria accion,
+			@RequestParam(required = false) Long pacienteId,
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant desde,
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant hasta,
 			@PageableDefault(size = 20, sort = "fecha", direction = Sort.Direction.DESC) Pageable pageable) {
-		return PaginaResponse.de(service.buscar(username, accion, desde, hasta, pageable),
+		return PaginaResponse.de(service.buscar(username, accion, pacienteId, desde, hasta, pageable),
 				RegistroAuditoriaResponse::de);
 	}
 
