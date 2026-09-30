@@ -19,7 +19,8 @@ FRONTEND (`frontend/`, repositorio propio):
 BACKEND (`backend/`, repositorio propio):
 
 - Java 21 (LTS)
-- Spring Boot 4, Spring Security (JWT con OAuth2 Resource Server), BCrypt
+- Spring Boot 4, Spring Security (JWT con OAuth2 Resource Server), contraseñas con Argon2id
+- Datos sensibles del paciente (documento, teléfonos, dirección) cifrados con AES-256-GCM; la clave `CIFRADO_CLAVE` vive solo en `.env`
 - Spring Data JPA / Hibernate, API REST
 - Flyway (migraciones), Maven (wrapper `mvnw`)
 

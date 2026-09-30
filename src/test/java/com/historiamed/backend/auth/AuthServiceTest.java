@@ -121,6 +121,20 @@ class AuthServiceTest {
 		assertThat(u.getUltimoAcceso()).isNotNull();
 	}
 
+	@Test
+	void loginConHashAntiguoLoRehaceConArgon2() {
+		Usuario u = usuario();
+		when(usuarioRepository.findByUsername("medico1")).thenReturn(Optional.of(u));
+		when(passwordEncoder.matches("correcta", "hash")).thenReturn(true);
+		when(passwordEncoder.upgradeEncoding("hash")).thenReturn(true);
+		when(passwordEncoder.encode("correcta")).thenReturn("{argon2}nuevo");
+		when(tokenService.duracion()).thenReturn(Duration.ofMinutes(15));
+
+		service.login(new LoginRequest("medico1", "correcta"));
+
+		assertThat(u.getPasswordHash()).isEqualTo("{argon2}nuevo");
+	}
+
 	private static Usuario usuario() {
 		Usuario u = new Usuario();
 		ReflectionTestUtils.setField(u, "id", 10L);

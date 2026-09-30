@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.historiamed.backend.auditoria.AccionAuditoria;
 import com.historiamed.backend.auditoria.AuditoriaService;
+import com.historiamed.backend.common.security.CifradoDatos;
 import com.historiamed.backend.common.util.Edad;
 import com.historiamed.backend.common.util.Tiempo;
 import com.historiamed.backend.triaje.Alerta;
@@ -62,6 +63,8 @@ public class CargaDatosDemo implements ApplicationRunner {
 
 	private final AuditoriaService auditoria;
 
+	private final CifradoDatos cifrado;
+
 	/** Semilla fija: la demostración sale igual cada vez que se carga. */
 	private final Random azar = new Random(2026);
 
@@ -69,11 +72,12 @@ public class CargaDatosDemo implements ApplicationRunner {
 	private final Map<String, Integer> turnos = new HashMap<>();
 
 	public CargaDatosDemo(JdbcTemplate jdbc, PasswordEncoder passwordEncoder, EvaluadorTriaje evaluador,
-			AuditoriaService auditoria) {
+			AuditoriaService auditoria, CifradoDatos cifrado) {
 		this.jdbc = jdbc;
 		this.passwordEncoder = passwordEncoder;
 		this.evaluador = evaluador;
 		this.auditoria = auditoria;
+		this.cifrado = cifrado;
 	}
 
 	// ------------------------------------------------------------------------------------------------------------
@@ -345,13 +349,15 @@ public class CargaDatosDemo implements ApplicationRunner {
 	private long paciente(PacienteDemo p, long registradoPor, Instant creado) {
 		long numero = jdbc.queryForObject("SELECT nextval('seq_numero_hc')", Long.class);
 		return jdbc.queryForObject("""
-				INSERT INTO pacientes (numero_hc, tipo_documento, numero_documento, nombres, apellido_paterno,
-				    apellido_materno, fecha_nacimiento, sexo, telefono, direccion, tipo_financiamiento,
+				INSERT INTO pacientes (numero_hc, tipo_documento, numero_documento, numero_documento_huella, nombres,
+				    apellido_paterno, apellido_materno, fecha_nacimiento, sexo, telefono, direccion, tipo_financiamiento,
 				    seguro_numero_afiliacion, seguro_plan, seguro_estado, seguro_verificado_en,
 				    orientado_afiliacion_sis, creado_por, creado_en, actualizado_en)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""", Long.class,
-				"HC-%06d".formatted(numero), p.tipoDoc(), p.doc(), p.nombres(), p.paterno(), p.materno(),
-				p.nacimiento(), p.sexo(), p.telefono(), p.direccion(), p.financiamiento(), p.afiliacion(), p.plan(),
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id""", Long.class,
+				// Documento, teléfono y dirección cifrados, igual que al registrar por la aplicación
+				"HC-%06d".formatted(numero), p.tipoDoc(), cifrado.cifrar(p.doc()), cifrado.huella(p.doc()),
+				p.nombres(), p.paterno(), p.materno(), p.nacimiento(), p.sexo(), cifrado.cifrar(p.telefono()),
+				cifrado.cifrar(p.direccion()), p.financiamiento(), p.afiliacion(), p.plan(),
 				p.estadoSeguro(), "ACTIVO".equals(p.estadoSeguro()) ? ts(creado) : null,
 				"PARTICULAR".equals(p.financiamiento()) && p.doc() != null && p.tipoDoc().equals("DNI"),
 				registradoPor, ts(creado), ts(creado));

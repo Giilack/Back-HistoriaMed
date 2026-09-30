@@ -1,6 +1,7 @@
 package com.historiamed.backend.config;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,7 +11,9 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
@@ -69,8 +72,24 @@ public class SecurityConfig {
 
 	@Bean
 	PasswordEncoder passwordEncoder() {
-		return new BCryptPasswordEncoder();
+		return crearPasswordEncoder();
 	}
+
+	/**
+	 * Contraseñas con hash Argon2id (recomendación de OWASP: 19 MiB de memoria, 2 iteraciones, 1 hilo). Los hashes
+	 * se guardan con prefijo ({@code {argon2}...}). Los hashes BCrypt anteriores, sin prefijo, siguen validándose y
+	 * se rehacen con Argon2id cuando el usuario inicia sesión (ver {@code AuthService.login}).
+	 */
+	static PasswordEncoder crearPasswordEncoder() {
+		PasswordEncoder argon2 = new Argon2PasswordEncoder(16, 32, 1, 19 * 1024, 2);
+		PasswordEncoder bcrypt = new BCryptPasswordEncoder();
+		DelegatingPasswordEncoder codificador = new DelegatingPasswordEncoder(ID_ARGON2,
+				Map.of(ID_ARGON2, argon2, "bcrypt", bcrypt));
+		codificador.setDefaultPasswordEncoderForMatches(bcrypt);
+		return codificador;
+	}
+
+	private static final String ID_ARGON2 = "argon2";
 
 	@Bean
 	CorsConfigurationSource corsConfigurationSource(HistoriaMedProperties properties) {

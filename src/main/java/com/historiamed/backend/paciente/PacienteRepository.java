@@ -8,7 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface PacienteRepository extends JpaRepository<Paciente, Long>, JpaSpecificationExecutor<Paciente> {
 
-	Optional<Paciente> findByTipoDocumentoAndNumeroDocumento(TipoDocumento tipo, String numero);
+	/** El número de documento se guarda cifrado: se busca por su huella ({@code CifradoDatos.huella}). */
+	Optional<Paciente> findByTipoDocumentoAndNumeroDocumentoHuella(TipoDocumento tipo, String huella);
 
 	@Query(value = "SELECT nextval('seq_numero_hc')", nativeQuery = true)
 	long siguienteNumeroHc();
