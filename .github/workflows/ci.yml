@@ -1,0 +1,33 @@
+# Integración continua del backend: compila y ejecuta las pruebas en cada push y en cada Pull Request.
+name: Pruebas del backend
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    env:
+      # Valores solo para las pruebas: no son los de ningún entorno real.
+      # La prueba que levanta el sistema completo usa un PostgreSQL temporal (Testcontainers).
+      DB_PASSWORD: prueba
+      JWT_SECRET: secreto-solo-para-pruebas-con-mas-de-32-caracteres
+      # 32 bytes en cero, en Base64
+      CIFRADO_CLAVE: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Compilar y probar
+        run: ./mvnw -B test
+      - name: Guardar el reporte de pruebas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-de-pruebas
+          path: target/surefire-reports/
