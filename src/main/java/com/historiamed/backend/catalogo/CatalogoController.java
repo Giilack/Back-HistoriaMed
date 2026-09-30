@@ -10,9 +10,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Búsqueda en los catálogos de diagnósticos y medicamentos. Son datos de referencia, no de pacientes: los usan el
+ * MEDICO al atender y TRIAJE o MEDICO al llenar la revisión de un documento.
+ */
 @RestController
 @RequestMapping("/api")
-@PreAuthorize("hasRole('MEDICO')")
+@PreAuthorize("hasAnyRole('TRIAJE', 'MEDICO')")
 @RequiredArgsConstructor
 public class CatalogoController {
 

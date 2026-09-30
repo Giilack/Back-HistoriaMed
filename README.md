@@ -45,7 +45,7 @@ La API queda en `http://localhost:8080`. Estado: `http://localhost:8080/actuator
 .\mvnw.cmd test
 ```
 
-Pruebas unitarias de las reglas de negocio (autenticación, pacientes, citas, triaje, alergias, atención, documentos).
+Pruebas unitarias de las reglas de negocio (autenticación, pacientes, citas, triaje, alergias, atención, documentos, cifrado y revisión de documentos).
 La prueba de contexto con Testcontainers se omite automáticamente si no hay Docker.
 
 ## Datos de demostración (para la sustentación)
@@ -87,12 +87,15 @@ Organizado **por módulos de negocio** (`com.historiamed.backend`):
 | `catalogo` | CIE-10 y medicamentos |
 | `atencion` | Atención médica, diagnósticos, receta, alerta de alergias, cierre y adendas |
 | `documento` | Documentos clínicos y almacenamiento (`AlmacenamientoService`) |
+| `extraccion` | Revisión de los datos de un documento: llenado por categoría, validación del médico y paso a la historia |
+| `antecedente` | Antecedentes del paciente (personales, familiares, quirúrgicos, diagnósticos previos, medicación habitual) |
+| `laboratorio` | Resultados de laboratorio |
 | `reporte` | Indicadores agregados para el ADMIN |
 | `auditoria` | Registro inmutable de accesos y operaciones |
 | `demo` | Carga de datos ficticios |
 | `common`, `config` | Errores, seguridad, utilidades y configuración |
 
-Las migraciones de la base de datos están en `src/main/resources/db/migration` (V1 a V8). **Una migración ya aplicada
+Las migraciones de la base de datos están en `src/main/resources/db/migration` (V1 a V13; la V11 es una migración Java en el paquete `paciente`). **Una migración ya aplicada
 no se modifica nunca**: los cambios se hacen con una migración nueva.
 
 ## Seguridad (resumen)
