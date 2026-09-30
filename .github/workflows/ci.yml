@@ -1,9 +1,9 @@
-# Integración continua del backend: compila y ejecuta las pruebas en cada push y en cada Pull Request.
+# Integración continua del backend: compila y ejecuta las pruebas en cada push a main o develop y en cada Pull Request.
 name: Pruebas del backend
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
 
 jobs:
