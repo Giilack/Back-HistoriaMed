@@ -20,7 +20,7 @@ class AtencionTest {
 
 		assertThat(a.estaCerrada()).isTrue();
 		assertThat(a.getCerradaEn()).isNotNull();
-		assertThatThrownBy(() -> a.reemplazarContenido(List.of(), List.of()))
+		assertThatThrownBy(() -> a.reemplazarContenido(List.of(), List.of(), List.of()))
 			.isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("adenda");
 		assertThatThrownBy(() -> a.cerrar(Instant.now())).isInstanceOf(ReglaNegocioException.class);

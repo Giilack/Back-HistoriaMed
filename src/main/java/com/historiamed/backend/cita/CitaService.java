@@ -3,6 +3,7 @@ package com.historiamed.backend.cita;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
@@ -91,6 +92,17 @@ public class CitaService {
 	@Transactional(readOnly = true)
 	public CitaResponse ver(Long id) {
 		return CitaResponse.de(obtener(id));
+	}
+
+	/**
+	 * ¿El paciente tiene una cita posterior a esa fecha, programada, en curso o ya atendida? Las canceladas y las
+	 * inasistencias no cuentan. Sirve para saber si un control sugerido ya se agendó.
+	 */
+	@Transactional(readOnly = true)
+	public boolean tieneCitaPosterior(Long pacienteId, LocalDate despuesDe) {
+		Set<EstadoCita> estados = EnumSet.copyOf(EstadoCita.ACTIVOS);
+		estados.add(EstadoCita.ATENDIDO);
+		return repository.pacienteTieneCitaPosterior(pacienteId, despuesDe, estados);
 	}
 
 	/** Para otros módulos (triaje, consulta) que operan sobre la cita dentro de su propia transacción. */

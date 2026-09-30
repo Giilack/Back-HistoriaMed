@@ -1,6 +1,7 @@
 package com.historiamed.backend.atencion;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -78,6 +79,20 @@ public class Atencion extends EntidadBase {
 
 	private String indicaciones;
 
+	/** Descanso médico: número de días desde {@link #descansoDesde}. Ambos o ninguno. */
+	@Column(name = "descanso_dias")
+	private Integer descansoDias;
+
+	@Column(name = "descanso_desde")
+	private LocalDate descansoDesde;
+
+	/** Fecha sugerida para la cita de control: ADMISION la ve para programarla. */
+	@Column(name = "control_fecha")
+	private LocalDate controlFecha;
+
+	@Column(name = "control_nota")
+	private String controlNota;
+
 	@Setter(AccessLevel.NONE)
 	@ElementCollection
 	@CollectionTable(name = "atencion_diagnosticos", joinColumns = @JoinColumn(name = "atencion_id"))
@@ -90,6 +105,13 @@ public class Atencion extends EntidadBase {
 	@OrderColumn(name = "orden")
 	private List<ItemReceta> receta = new ArrayList<>();
 
+	/** Tratamiento no farmacológico, exámenes solicitados e interconsultas. */
+	@Setter(AccessLevel.NONE)
+	@ElementCollection
+	@CollectionTable(name = "atencion_plan", joinColumns = @JoinColumn(name = "atencion_id"))
+	@OrderColumn(name = "orden")
+	private List<ItemPlan> plan = new ArrayList<>();
+
 	@Setter(AccessLevel.NONE)
 	@OneToMany(mappedBy = "atencion")
 	@OrderBy("creadoEn")
@@ -99,13 +121,21 @@ public class Atencion extends EntidadBase {
 		return estado == EstadoAtencion.CERRADA;
 	}
 
-	/** Reemplaza diagnósticos y receta del borrador. */
-	void reemplazarContenido(List<Diagnostico> nuevosDiagnosticos, List<ItemReceta> nuevaReceta) {
+	/** Reemplaza diagnósticos, receta y plan del borrador. */
+	void reemplazarContenido(List<Diagnostico> nuevosDiagnosticos, List<ItemReceta> nuevaReceta,
+			List<ItemPlan> nuevoPlan) {
 		exigirEnCurso();
 		diagnosticos.clear();
 		diagnosticos.addAll(nuevosDiagnosticos);
 		receta.clear();
 		receta.addAll(nuevaReceta);
+		plan.clear();
+		plan.addAll(nuevoPlan);
+	}
+
+	/** Último día del descanso médico (incluido), o null si no se indicó. */
+	public LocalDate descansoHasta() {
+		return descansoDesde == null ? null : descansoDesde.plusDays(descansoDias - 1L);
 	}
 
 	void cerrar(Instant ahora) {
