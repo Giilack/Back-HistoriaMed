@@ -17,6 +17,7 @@ import com.historiamed.backend.auditoria.AccionAuditoria;
 import com.historiamed.backend.auditoria.AuditoriaService;
 import com.historiamed.backend.common.exception.RecursoNoEncontradoException;
 import com.historiamed.backend.common.exception.ReglaNegocioException;
+import com.historiamed.backend.common.security.CifradoDatos;
 import com.historiamed.backend.common.security.UsuarioActual;
 import com.historiamed.backend.common.util.Edad;
 import com.historiamed.backend.common.util.Tiempo;
@@ -49,6 +50,8 @@ public class PacienteService {
 
 	private final AuditoriaService auditoria;
 
+	private final CifradoDatos cifrado;
+
 	/**
 	 * Busca pacientes activos por número de HC, número de documento o nombres y apellidos (sin importar tildes ni
 	 * mayúsculas; cada palabra debe coincidir con algún nombre o apellido).
@@ -68,9 +71,10 @@ public class PacienteService {
 					pageable);
 		}
 		if (PATRON_DOCUMENTO.matcher(q).matches()) {
-			String documento = q.toUpperCase(Locale.ROOT);
+			// El número está cifrado: se busca por su huella
+			String huella = cifrado.huella(q.toUpperCase(Locale.ROOT));
 			return repository.findAll(
-					spec.and((root, query, cb) -> cb.equal(root.get("numeroDocumento"), documento)), pageable);
+					spec.and((root, query, cb) -> cb.equal(root.get("numeroDocumentoHuella"), huella)), pageable);
 		}
 		for (String palabra : q.split(" ")) {
 			String patron = "%" + sinTildes(palabra.toLowerCase(Locale.ROOT)) + "%";
@@ -148,6 +152,7 @@ public class PacienteService {
 
 		p.setTipoDocumento(req.tipoDocumento());
 		p.setNumeroDocumento(numeroDocumento);
+		p.setNumeroDocumentoHuella(cifrado.huella(numeroDocumento));
 		p.setNombres(limpiar(req.nombres()));
 		p.setApellidoPaterno(limpiar(req.apellidoPaterno()));
 		p.setApellidoMaterno(limpiar(req.apellidoMaterno()));
@@ -178,7 +183,7 @@ public class PacienteService {
 			throw new ReglaNegocioException("El DNI debe tener 8 dígitos");
 		}
 		String numeroFinal = n;
-		repository.findByTipoDocumentoAndNumeroDocumento(tipo, n)
+		repository.findByTipoDocumentoAndNumeroDocumentoHuella(tipo, cifrado.huella(n))
 			.filter(otro -> !Objects.equals(otro.getId(), p.getId()))
 			.ifPresent(otro -> {
 				throw new ReglaNegocioException("Ya existe un paciente con " + tipo + " " + numeroFinal + ": "

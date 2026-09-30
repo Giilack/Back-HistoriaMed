@@ -84,6 +84,10 @@ public class AuthService {
 			throw new CredencialesInvalidasException();
 		}
 
+		// Hash antiguo (BCrypt): se rehace con Argon2id aprovechando que ahora se conoce la contraseña
+		if (passwordEncoder.upgradeEncoding(u.getPasswordHash())) {
+			u.setPasswordHash(passwordEncoder.encode(req.password()));
+		}
 		u.setIntentosFallidos(0);
 		u.setBloqueadoHasta(null);
 		u.setUltimoAcceso(ahora);

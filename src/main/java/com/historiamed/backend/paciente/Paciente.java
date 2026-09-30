@@ -4,8 +4,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 import com.historiamed.backend.common.entity.EntidadBase;
+import com.historiamed.backend.common.security.CampoCifradoConverter;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -26,8 +28,14 @@ public class Paciente extends EntidadBase {
 	@Column(name = "tipo_documento", nullable = false)
 	private TipoDocumento tipoDocumento;
 
+	// Datos personales sensibles: se guardan cifrados (AES-GCM) y se leen descifrados
+	@Convert(converter = CampoCifradoConverter.class)
 	@Column(name = "numero_documento")
 	private String numeroDocumento;
+
+	/** Huella del número de documento (HMAC): permite buscar y evitar duplicados sin descifrar. */
+	@Column(name = "numero_documento_huella")
+	private String numeroDocumentoHuella;
 
 	@Column(nullable = false)
 	private String nombres;
@@ -45,15 +53,18 @@ public class Paciente extends EntidadBase {
 	@Column(nullable = false)
 	private Sexo sexo;
 
+	@Convert(converter = CampoCifradoConverter.class)
 	private String telefono;
 
 	private String email;
 
+	@Convert(converter = CampoCifradoConverter.class)
 	private String direccion;
 
 	@Column(name = "contacto_emergencia_nombre")
 	private String contactoEmergenciaNombre;
 
+	@Convert(converter = CampoCifradoConverter.class)
 	@Column(name = "contacto_emergencia_telefono")
 	private String contactoEmergenciaTelefono;
 

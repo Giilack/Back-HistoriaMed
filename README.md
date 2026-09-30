@@ -23,6 +23,7 @@ La lógica de negocio completa está en `plan.md` (en la carpeta raíz del proye
 | `DB_URL` | `jdbc:postgresql://localhost:5432/Db-Med` |
 | `DB_USERNAME` / `DB_PASSWORD` | Credenciales de PostgreSQL |
 | `JWT_SECRET` | Secreto aleatorio de al menos 32 caracteres (`openssl rand -base64 48`) |
+| `CIFRADO_CLAVE` | Clave de cifrado de los datos sensibles del paciente: 32 bytes en Base64 (`openssl rand -base64 32`). **Guarde una copia**: si se pierde, esos datos no se pueden descifrar |
 | `ADMIN_INICIAL_USERNAME` / `ADMIN_INICIAL_PASSWORD` | Primer ADMIN; se crea solo si no existe ninguno y debe cambiar su contraseña al ingresar |
 | `DEMO` | `true` para cargar datos de demostración (ver abajo). Por defecto `false` |
 | `ALMACENAMIENTO_DIR` | Carpeta de los documentos subidos. Por defecto `uploads/` (ignorada por Git) |
@@ -96,7 +97,8 @@ no se modifica nunca**: los cambios se hacen con una migración nueva.
 
 ## Seguridad (resumen)
 
-- Contraseñas con BCrypt; bloqueo de 15 minutos tras 5 intentos fallidos; contraseña temporal obligatoria de cambiar.
+- Contraseñas con hash Argon2id (los hashes BCrypt anteriores se actualizan al iniciar sesión); bloqueo de 15 minutos tras 5 intentos fallidos; contraseña temporal obligatoria de cambiar.
+- Documento, teléfonos y dirección del paciente cifrados en la base con AES-256-GCM (`CifradoDatos`); la búsqueda por documento usa una huella HMAC.
 - Access token JWT de 15 minutos + refresh token rotativo con detección de reutilización.
 - Permisos por rol en cada endpoint: el ADMIN no accede a datos clínicos; ADMISION no ve contenido clínico.
 - Auditoría inmutable (la base de datos rechaza modificarla) de accesos, cambios y descargas.

@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
+import java.util.Base64;
 import java.util.Optional;
 
 import org.junit.jupiter.api.AfterEach;
@@ -21,6 +22,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.historiamed.backend.TestSeguridad;
 import com.historiamed.backend.auditoria.AuditoriaService;
 import com.historiamed.backend.common.exception.ReglaNegocioException;
+import com.historiamed.backend.common.security.CifradoDatos;
 import com.historiamed.backend.paciente.dto.FinanciamientoRequest;
 import com.historiamed.backend.paciente.dto.PacienteRequest;
 import com.historiamed.backend.paciente.dto.VerificacionSeguroRequest;
@@ -34,11 +36,13 @@ class PacienteServiceTest {
 	@Mock
 	private AuditoriaService auditoria;
 
+	private final CifradoDatos cifrado = new CifradoDatos(Base64.getEncoder().encodeToString(new byte[32]));
+
 	private PacienteService service;
 
 	@BeforeEach
 	void setUp() {
-		service = new PacienteService(repository, auditoria);
+		service = new PacienteService(repository, auditoria, cifrado);
 		TestSeguridad.autenticarComo(7L, "admision1", "ADMISION");
 	}
 
@@ -59,13 +63,15 @@ class PacienteServiceTest {
 		// Sin financiamiento indicado queda como PARTICULAR
 		assertThat(p.getTipoFinanciamiento()).isEqualTo(TipoFinanciamiento.PARTICULAR);
 		assertThat(p.getSeguroEstado()).isNull();
+		// El documento lleva su huella para buscarlo aunque se guarde cifrado
+		assertThat(p.getNumeroDocumentoHuella()).isEqualTo(cifrado.huella("12345678"));
 	}
 
 	@Test
 	void dniDuplicadoIndicaLaHistoriaExistente() {
 		Paciente existente = paciente(5L);
 		existente.setNumeroHc("HC-000005");
-		when(repository.findByTipoDocumentoAndNumeroDocumento(TipoDocumento.DNI, "12345678"))
+		when(repository.findByTipoDocumentoAndNumeroDocumentoHuella(TipoDocumento.DNI, cifrado.huella("12345678")))
 			.thenReturn(Optional.of(existente));
 
 		assertThatThrownBy(() -> service.registrar(request(TipoDocumento.DNI, "12345678", null)))
@@ -88,6 +94,7 @@ class PacienteServiceTest {
 		Paciente p = service.registrar(request(TipoDocumento.SIN_DOCUMENTO, "99999999", null));
 
 		assertThat(p.getNumeroDocumento()).isNull();
+		assertThat(p.getNumeroDocumentoHuella()).isNull();
 	}
 
 	@Test
