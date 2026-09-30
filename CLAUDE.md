@@ -44,6 +44,7 @@ INTELIGENCIA ARTIFICIAL: planificada para las fases 11 y 12 (ver `plan.md`, secc
 
 # Reglas del proyecto
 
+- **Flujo de trabajo GitFlow** (ver `CONTRIBUTING.md` de cada repositorio): cada tarea en una rama `feature/*` que sale de `develop` y vuelve por Pull Request; nada se sube directo a `main` ni a `develop`. `main` es producción y lleva etiquetas de versión (`v1.0.0`…).
 - **Nunca usar datos reales de pacientes**: solo datos sintéticos.
 - **Nunca modificar una migración ya aplicada**: crear una nueva (`V9__...sql`).
 - **No subir secretos ni datos**: `.env` y `uploads/` están en `.gitignore`.
