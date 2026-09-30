@@ -4,6 +4,8 @@
 
 > ⏸️ **Decisión (27/09/2026): la IA queda pospuesta.** Por ahora no se usará ninguna API de IA ni modelos abiertos. Las secciones 5.5 (extracción) y 5.6 (chatbot) describen el diseño objetivo, pero se implementarán más adelante. Mientras tanto, los documentos se suben, almacenan y visualizan **sin procesamiento automático**, y el sistema se diseña para que la IA pueda conectarse después sin rehacer nada.
 
+> ▶️ **Actualización (30/09/2026): se define el camino hacia la IA.** Primero se construye la **revisión de documentos con llenado manual** (fase 8) y el **tratamiento estructurado** (fase 9), y se despliega (fase 10). La IA llega después (fases 11 y 12) y llena **la misma pantalla de revisión**, de modo que el sistema funciona completo aunque la IA no esté disponible. Ver la sección 8 (fases) y la 9 (reparto del equipo).
+
 ## 1. Alcance
 
 Sistema web de **historia clínica electrónica para consulta externa** de un establecimiento de salud público (primer nivel de atención). Cubre el flujo completo de una atención ambulatoria:
@@ -171,6 +173,13 @@ Modelo propuesto:
 - **Alerta de alergias (determinista):** si el medicamento recetado coincide con una alergia registrada, el sistema **bloquea o exige confirmación explícita** con justificación. No depende de la IA.
 - **Cierre:** al firmar, la atención queda inmutable (P3). Después solo se permiten adendas.
 - Solo el médico asignado puede editar su atención mientras está abierta.
+- **Tratamiento estructurado (fase 9):** además de la receta, la atención registra, como datos y no como texto libre:
+  - **tratamiento no farmacológico** (dieta, reposo, fisioterapia, curaciones);
+  - **órdenes de exámenes auxiliares** (laboratorio, imágenes) e **interconsultas** a otra especialidad;
+  - **descanso médico** (días y fechas), con documento imprimible;
+  - **cita de control** sugerida, que ADMISION ve para programarla.
+
+  Todo queda inmutable al firmar, igual que la receta. No depende de la IA.
 
 **Implementación (fase 5):**
 - **Flujo:** el médico pulsa "Atender" (cita → EN_CONSULTA) → guarda borradores → "Firmar y cerrar" (cita → ATENDIDO).
@@ -191,14 +200,36 @@ Modelo propuesto:
 - **No se borran:** se anulan con un motivo (lo puede hacer quien lo subió o un médico) y su contenido deja de mostrarse.
 - Cada vez que se abre un documento queda registrado en la auditoría (DESCARGAR).
 
-Flujo objetivo (con IA):
+**Revisión de documentos (fase 8, sin IA; la IA se suma en la fase 11):**
 
 ```
 Subida (ADMISION, TRIAJE o MEDICO)
-   └─► RECIBIDO ─► PROCESANDO ─► PENDIENTE_REVISION ─► VALIDADO (lo confirma un médico)
-                        │                          └─► RECHAZADO
-                        └─► ERROR (se puede reintentar; el archivo nunca se pierde)
+   └─► RECIBIDO ─┬─► llenado manual (TRIAJE o MEDICO) ──────┐
+                 └─► PROCESANDO (IA, fase 11) ─► propuesta ─┤
+                          └─► ERROR (se reintenta o se      ▼
+                              llena a mano; el archivo    PENDIENTE_REVISION
+                              no se pierde)                 ├─► VALIDADO (lo confirma un médico)
+                                                            └─► RECHAZADO
 ```
+
+- **Una sola pantalla de revisión**, con el documento al lado y los datos agrupados por categoría. La llena una persona (fase 8) o la IA como propuesta (fase 11); en ambos casos **el médico valida** cada dato: lo acepta, lo corrige o lo descarta (P2).
+- **ADMISION sube el archivo pero no llena ni ve los datos clínicos** (P1). El llenado manual lo hacen TRIAJE o MEDICO; la validación, solo el MEDICO.
+- **Categorías y destino de cada dato validado:**
+
+  | Categoría | Destino al validar |
+  |---|---|
+  | Alergias | tabla `alergias` (ya existe; pasa por `AlergiaService`) |
+  | Diagnósticos | referencia al catálogo `cie`; quedan como antecedente del paciente |
+  | Medicamentos en uso | referencia al catálogo `medicamentos`; quedan como antecedente |
+  | Resultados de laboratorio | tabla nueva `resultados_laboratorio` (examen, valor, unidad, rango, fecha) |
+  | Antecedentes (personales, familiares, quirúrgicos) | tabla nueva `antecedentes` |
+  | Otros | se conservan solo en el texto del documento |
+
+- **Tablas nuevas (migración V13):** `extracciones` (documento, origen MANUAL o IA, estado, texto completo, quién y cuándo) y `extraccion_items` (categoría, valor, fragmento y página de origen, estado: PROPUESTO, ACEPTADO, CORREGIDO, DESCARTADO).
+- **Los códigos no los inventa nadie:** el diagnóstico y el medicamento se eligen del catálogo con el buscador que ya usa la atención.
+- Cada apertura, llenado y validación se registra en la auditoría.
+
+Flujo con IA (fase 11), sobre lo anterior:
 
 1. Se sube el archivo (PDF, JPG o PNG; máximo 10 MB) y se asocia al paciente.
 2. **Clasificación automática** del tipo de documento: `LABORATORIO`, `RECETA`, `INFORME_MEDICO`, `EPICRISIS`, `IMAGENOLOGIA`, `REFERENCIA`, `OTRO`.
@@ -220,6 +251,7 @@ Subida (ADMISION, TRIAJE o MEDICO)
   - no se guarda en la historia clínica automáticamente.
 - Si la información no está en la historia, el asistente debe responder **"no hay registro"** en lugar de inventar.
 - Cada pregunta y respuesta se guarda en la **auditoría**.
+- **Límite conocido:** un modelo local pequeño consulta y resume bien, pero sus recomendaciones clínicas son de calidad limitada. Por eso el backend habla con la IA mediante una interfaz propia (`ProveedorIA`): pasar de Ollama a otro proveedor sería un cambio de configuración. Usar una API externa solo sería aceptable con datos ficticios y sin identificadores (P6).
 
 ### 5.7 Auditoría
 - Se registra: usuario, rol, acción (VER, CREAR, EDITAR, CERRAR, DESCARGAR, CONSULTA_IA), recurso, paciente, fecha y hora, e IP.
@@ -243,8 +275,8 @@ Subida (ADMISION, TRIAJE o MEDICO)
 | Backend | Java 21 + Spring Boot 4 + Spring Security (JWT) + JPA + Flyway | Gratis |
 | Base de datos | PostgreSQL 18 (+ pgvector para el chatbot) | Gratis |
 | Servicio de IA ⏸️ | Python + FastAPI | Gratis (pospuesto) |
-| **LLM** ⏸️ | Por definir cuando se retome la IA (ver 6.1) | Pospuesto |
-| OCR ⏸️ | Tesseract / PaddleOCR (local) | Gratis (pospuesto) |
+| **LLM** (fases 11–12) | Qwen3 4B en Ollama, local y configurable (ver 6.1) | Gratis |
+| Lectura de PDF y OCR (fase 11) | PyMuPDF para PDF digitales; Docling con OCR para escaneos | Gratis |
 | Embeddings ⏸️ | Modelo multilingüe de Hugging Face (local) | Gratis (pospuesto) |
 | **Archivos** | **Disco local en desarrollo; Cloudflare R2 en la nube** (ver 6.2) | Gratis |
 
@@ -256,7 +288,8 @@ Subida (ADMISION, TRIAJE o MEDICO)
   - Envía los datos clínicos a servidores externos (en China), lo que contradice P6 y complica el cumplimiento de la Ley 29733 de protección de datos personales en cuanto a transferencias internacionales.
 - **Modelos abiertos de DeepSeek en local vía Ollama:** ✅ opción válida y gratuita. Por ejemplo, las versiones destiladas de DeepSeek-R1. Los datos no salen de la máquina.
 - **Recomendación:** que el modelo sea **configurable** (una variable de entorno) y comparar en pruebas DeepSeek frente a Qwen o Llama para español clínico. Los modelos de razonamiento como R1 son más lentos; para extraer datos y responder preguntas puntuales puede rendir mejor un modelo "instruct".
-- **Requisito:** al menos 16 GB de RAM para modelos de 7–8B parámetros. Con GPU es más rápido. *(Por confirmar: RAM y GPU del equipo.)*
+- **Requisito:** al menos 16 GB de RAM para modelos de 7–8B parámetros. Con GPU es más rápido.
+- **Equipo de desarrollo (30/09/2026):** 7,6 GB de RAM, NVIDIA RTX 2050 con 4 GB de VRAM, i5-12450H. Alcanza para un modelo de **4B** (unos 3 GB en la GPU), no para uno de 7–8B. Elección: **Qwen3 4B** (alternativa: Gemma 3 4B), procesando un documento a la vez.
 
 ### 6.2 Sobre Cloudflare R2
 - ✅ **Buena elección para la nube.** Tiene una capa gratuita (10 GB de almacenamiento al mes y **sin costo por descarga**), y es compatible con la API de S3, así que se usa con el SDK de AWS.
@@ -266,12 +299,26 @@ Subida (ADMISION, TRIAJE o MEDICO)
   - `AlmacenamientoR2`: para la nube, activada por configuración.
 - El bucket es **privado**. Los archivos se descargan solo con **URLs prefirmadas** de corta duración (5 min), y cada descarga se audita.
 
+### 6.3 Despliegue en la nube (fase 10)
+
+| Pieza | Servicio | Por qué |
+|---|---|---|
+| Frontend | **Vercel** | Gratis y se despliega con cada push. Reenvía `/api` al backend (como Vite en local), así el navegador ve un solo sitio y la cookie de sesión `SameSite=Strict` funciona. |
+| Backend | **Render** (Docker) | Ejecuta Java gratis. Se duerme tras 15 minutos sin uso: abrirlo antes de la sustentación. |
+| Base de datos | **Neon** (PostgreSQL) | Gratis y permanente (la base gratuita de Render caduca). |
+| Documentos | **Cloudflare R2** | El disco de Render se borra en cada reinicio (ver 6.2). |
+| IA (fase 13) | **Oracle Cloud Always Free** | La única opción gratuita con memoria para Ollama. Si no se consigue la cuenta: un servidor pequeño de pago. |
+
+- Vercel **no** puede ejecutar el backend: solo sirve el frontend.
+- En la nube, **solo datos ficticios** (P5). `JWT_SECRET` y `CIFRADO_CLAVE` de producción son distintos de los locales y viven en las variables de entorno del servicio.
+- Por verificar al desplegar: que el reenvío de Vercel admita PDF de 10 MB y tolere el arranque en frío de Render. Las capas gratuitas cambian: confirmar las condiciones al crear las cuentas.
+
 ---
 
 ## 7. Decisiones pendientes
 
 - [x] ¿Número de HC = DNI, o correlativo propio? → Correlativo `HC-000001` (ver 5.1).
-- [ ] ⏸️ RAM y GPU del equipo, para definir el modelo de IA (cuando se retome la IA).
+- [x] RAM y GPU del equipo, para definir el modelo de IA → 7,6 GB de RAM y RTX 2050 de 4 GB: modelo de 4B (ver 6.1).
 - [x] ¿Un médico atiende en uno o en varios consultorios o especialidades? → No está atado a un consultorio: cada cita indica médico y consultorio (catálogo de consultorios gestionado por el ADMIN).
 - [ ] ¿Se incluye el resumen FUA para pacientes SIS?
 - [x] Catálogo de medicamentos: ¿lista reducida propia o un petitorio oficial? → Lista reducida (~50 medicamentos esenciales frecuentes) con principio activo y grupo farmacológico. Se puede reemplazar por el petitorio oficial con otra migración.
@@ -291,7 +338,31 @@ Subida (ADMISION, TRIAJE o MEDICO)
 | 5 | Atención médica: CIE-10, receta, alerta de alergias, cierre | Atención completa de principio a fin — ✅ (pendiente la prueba en navegador) |
 | 6 | Documentos: subida, clasificación manual, almacenamiento y visor | Documentos asociados al paciente — ✅ (pendiente la prueba en navegador) |
 | 7 | Pulido: reportes, datos sintéticos de demo, documentación | Versión funcional sin IA — ✅ (despliegue en la nube: opcional, pendiente) |
-| 8 ⏸️ | IA de extracción: OCR, clasificación, extracción y validación | Documentos a datos sugeridos |
-| 9 ⏸️ | Chatbot clínico con RAG | Médico consulta la historia en lenguaje natural |
+| 7b | Rediseño visual del frontend, contraseñas con Argon2id y cifrado de los datos del paciente | ✅ |
+| 8 | **Revisión de documentos con llenado manual:** tablas de extracción, pantalla por categorías, validación del médico y paso a la historia (5.5) | Un documento subido se convierte en datos validados, sin IA |
+| 9 | **Tratamiento estructurado:** órdenes de exámenes, interconsultas, descanso médico y cita de control (5.4) | El médico indica receta y tratamiento como datos |
+| 10 | **Despliegue sin IA:** Dockerfile, almacenamiento R2, Vercel + Render + Neon (6.3) | Sistema en línea con datos ficticios |
+| 11 | **IA de extracción:** servicio FastAPI + PyMuPDF/Docling + Ollama, que llena la pantalla de la fase 8 | Documentos a datos propuestos |
+| 12 | **Chatbot clínico** con RAG (5.6) | El médico consulta la historia en lenguaje natural |
+| 13 | **Despliegue con IA** en Oracle Cloud | Sistema completo en línea |
 
-> Las fases 1 a 5 son el **núcleo**: sin ellas no hay sistema clínico. La IA (fases 8 y 9, **pospuestas**) es el diferenciador y se conectará sobre ese núcleo cuando se retome.
+> Las fases 1 a 5 son el **núcleo**: sin ellas no hay sistema clínico. Las fases 8 a 10 dan valor sin depender de la IA; la IA (fases 11 a 13) es el diferenciador y se conecta sobre lo anterior.
+>
+> Las antiguas fases 8 y 9 (IA de extracción y chatbot) son ahora la 11 y la 12.
+
+---
+
+## 9. Reparto del equipo (4 integrantes)
+
+Cada bloque se trabaja en su propia rama y se une a `main` con un Pull Request. Los bloques casi no comparten archivos.
+
+| Integrante | Bloque | Rama | Repositorio | Contenido |
+|---|---|---|---|---|
+| Giancarlo | Revisión de documentos: frontend (fase 8) | `extraccion-frontend` | frontend | Pantalla de revisión por categorías, llenado manual y validación |
+| Integrante 2 | Revisión de documentos: backend (fase 8) | `extraccion-backend` | backend | Migración V13, API de llenado y validación, paso de los datos a la historia, auditoría |
+| Integrante 3 | Tratamiento estructurado (fase 9) | `tratamiento` | backend y frontend | Migración V14, órdenes, interconsultas, descanso médico imprimible y cita de control |
+| Integrante 4 | Despliegue (fase 10) | `despliegue` | backend y frontend | Dockerfile, `AlmacenamientoR2`, configuración de Vercel, Render y Neon, guía de despliegue |
+
+- **Orden:** el backend de la fase 8 va primero, porque la pantalla usa su API. Las fases 9 y 10 pueden ir en paralelo.
+- **Migraciones reservadas:** V13 para la fase 8 y V14 para la fase 9, para que dos ramas no creen el mismo número.
+- Las fases 11 a 13 se repartirán cuando las anteriores estén funcionando.
