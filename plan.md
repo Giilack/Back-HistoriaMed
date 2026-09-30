@@ -365,9 +365,9 @@ Cada bloque se trabaja en su propia rama y se une a `main` con un Pull Request. 
 | Integrante | Bloque | Rama | Repositorio | Contenido |
 |---|---|---|---|---|
 | Giancarlo | Revisión de documentos: frontend (fase 8) | `extraccion-frontend` | frontend | Pantalla de revisión por categorías, llenado manual y validación |
-| Integrante 2 | Revisión de documentos: backend (fase 8) | `extraccion-backend` | backend | Migración V13, API de llenado y validación, paso de los datos a la historia, auditoría |
-| Integrante 3 | Tratamiento estructurado (fase 9) | `tratamiento` | backend y frontend | Migración V14, órdenes, interconsultas, descanso médico imprimible y cita de control |
-| Integrante 4 | Despliegue (fase 10) | `despliegue` | backend y frontend | Dockerfile, `AlmacenamientoBaseDatos`, configuración de Vercel, Render y Neon, integración continua, manual de despliegue |
+| SmooDZero | Revisión de documentos: backend (fase 8) | `extraccion-backend` | backend | Migración V13, API de llenado y validación, paso de los datos a la historia, auditoría |
+| Magdyrams | Tratamiento estructurado (fase 9) | `tratamiento` | backend y frontend | Migración V14, órdenes, interconsultas, descanso médico imprimible y cita de control |
+| Annd-Aiz | Despliegue (fase 10) | `despliegue` | backend y frontend | Dockerfile, `AlmacenamientoBaseDatos`, configuración de Vercel, Render y Neon, integración continua, manual de despliegue |
 
 - **Orden:** el backend de la fase 8 va primero, porque la pantalla usa su API. Las fases 9 y 10 pueden ir en paralelo.
 - **Migraciones reservadas:** V13 para la fase 8 y V14 para la fase 9, para que dos ramas no creen el mismo número.
