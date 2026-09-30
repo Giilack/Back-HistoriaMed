@@ -1,6 +1,7 @@
 package com.historiamed.backend.atencion;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.historiamed.backend.alergia.AlergiaService;
 import com.historiamed.backend.atencion.dto.AtencionRequest;
 import com.historiamed.backend.atencion.dto.AtencionResponse;
+import com.historiamed.backend.atencion.dto.ControlPendienteResponse;
 import com.historiamed.backend.auditoria.AccionAuditoria;
 import com.historiamed.backend.auditoria.AuditoriaService;
 import com.historiamed.backend.catalogo.CatalogoService;
@@ -28,6 +30,7 @@ import com.historiamed.backend.common.exception.AccesoProhibidoException;
 import com.historiamed.backend.common.exception.RecursoNoEncontradoException;
 import com.historiamed.backend.common.exception.ReglaNegocioException;
 import com.historiamed.backend.common.security.UsuarioActual;
+import com.historiamed.backend.common.util.Tiempo;
 import com.historiamed.backend.paciente.PacienteService;
 import com.historiamed.backend.triaje.TriajeService;
 import com.historiamed.backend.usuario.Usuario;
@@ -46,6 +49,15 @@ public class AtencionService {
 	private static final String RECURSO = "ATENCION";
 
 	private static final int HISTORIA_MAXIMO = 50;
+
+	/** El descanso médico puede empezar como máximo estos días después de la atención. */
+	private static final int DESCANSO_INICIO_MAXIMO = 7;
+
+	/** Un control sugerido deja de mostrarse como pendiente estos días después de su fecha. */
+	private static final int CONTROL_DIAS_VIGENCIA = 14;
+
+	/** Código de error de una indicación del plan mal formada; el detalle va por ítem (plan[i]). */
+	public static final String ERROR_PLAN = "PLAN_INVALIDO";
 
 	/** Código de error que el frontend reconoce para pedir la confirmación de la alergia. */
 	public static final String ERROR_ALERGIA = "ALERGIA_MEDICAMENTO";
@@ -142,7 +154,8 @@ public class AtencionService {
 		a.cerrar(ahora);
 		a.getCita().cambiarEstado(EstadoCita.ATENDIDO, ahora);
 		auditar(AccionAuditoria.CERRAR, a, a.getDiagnosticos().size() + " diagnóstico(s), "
-				+ a.getReceta().size() + " medicamento(s)");
+				+ a.getReceta().size() + " medicamento(s), " + a.getPlan().size() + " indicación(es)"
+				+ (a.getDescansoDias() == null ? "" : ", descanso de " + a.getDescansoDias() + " día(s)"));
 		return AtencionResponse.de(a);
 	}
 
@@ -173,7 +186,88 @@ public class AtencionService {
 		a.setExamenFisico(limpiar(req.examenFisico()));
 		a.setPlanTrabajo(limpiar(req.planTrabajo()));
 		a.setIndicaciones(limpiar(req.indicaciones()));
-		a.reemplazarContenido(diagnosticos(req.diagnosticos()), receta(a, req.receta()));
+		a.reemplazarContenido(diagnosticos(req.diagnosticos()), receta(a, req.receta()), plan(req.plan()));
+		aplicarDescanso(a, req.descanso());
+		aplicarControl(a, req.control());
+	}
+
+	/** Tratamiento no farmacológico, exámenes e interconsultas: cada tipo admite sus propias categorías. */
+	private static List<ItemPlan> plan(List<AtencionRequest.ItemPlanRequest> pedidos) {
+		List<ItemPlan> lista = new ArrayList<>();
+		if (pedidos == null) {
+			return lista;
+		}
+		for (int i = 0; i < pedidos.size(); i++) {
+			var p = pedidos.get(i);
+			String campo = "plan[" + i + "]";
+			String detalle = limpiar(p.detalle());
+			ItemPlan.Categoria categoria = p.categoria();
+			if (p.tipo() == ItemPlan.Tipo.INTERCONSULTA) {
+				categoria = null;
+				if (detalle == null) {
+					throw new ReglaNegocioException(ERROR_PLAN, "Indique el motivo de la interconsulta",
+							Map.of(campo, "Indique el motivo de la interconsulta"));
+				}
+			}
+			else if (categoria == null || !p.tipo().categorias().contains(categoria)) {
+				throw new ReglaNegocioException(ERROR_PLAN, "Elija la clase de indicación",
+						Map.of(campo, "Elija la clase de indicación"));
+			}
+			lista.add(new ItemPlan(p.tipo(), categoria, limpiar(p.descripcion()), detalle));
+		}
+		return lista;
+	}
+
+	private static void aplicarDescanso(Atencion a, AtencionRequest.DescansoRequest d) {
+		if (d == null) {
+			a.setDescansoDias(null);
+			a.setDescansoDesde(null);
+			return;
+		}
+		// El descanso empieza el día de la atención o después: no se otorga hacia atrás
+		LocalDate diaAtencion = LocalDate.ofInstant(a.getInicioEn(), Tiempo.ZONA);
+		if (d.desde().isBefore(diaAtencion)) {
+			throw new ReglaNegocioException("El descanso médico no puede empezar antes del día de la atención");
+		}
+		if (d.desde().isAfter(diaAtencion.plusDays(DESCANSO_INICIO_MAXIMO))) {
+			throw new ReglaNegocioException(
+					"El descanso médico debe empezar dentro de los " + DESCANSO_INICIO_MAXIMO + " días siguientes");
+		}
+		a.setDescansoDias(d.dias());
+		a.setDescansoDesde(d.desde());
+	}
+
+	private static void aplicarControl(Atencion a, AtencionRequest.ControlRequest c) {
+		if (c == null) {
+			a.setControlFecha(null);
+			a.setControlNota(null);
+			return;
+		}
+		LocalDate diaAtencion = LocalDate.ofInstant(a.getInicioEn(), Tiempo.ZONA);
+		if (!c.fecha().isAfter(diaAtencion)) {
+			throw new ReglaNegocioException("La fecha de control debe ser posterior al día de la atención");
+		}
+		if (c.fecha().isAfter(diaAtencion.plusYears(1))) {
+			throw new ReglaNegocioException("La fecha de control no puede ser a más de un año");
+		}
+		a.setControlFecha(c.fecha());
+		a.setControlNota(limpiar(c.nota()));
+	}
+
+	/**
+	 * Controles sugeridos que todavía no tienen cita: el paciente no tiene ninguna cita vigente posterior a la
+	 * atención. Se muestran hasta {@value #CONTROL_DIAS_VIGENCIA} días después de la fecha sugerida.
+	 */
+	@Transactional(readOnly = true)
+	public List<ControlPendienteResponse> controlesPendientes() {
+		LocalDate desde = Tiempo.hoy().minusDays(CONTROL_DIAS_VIGENCIA);
+		return repository
+			.findByEstadoAndControlFechaGreaterThanEqualOrderByControlFecha(EstadoAtencion.CERRADA, desde)
+			.stream()
+			.filter(a -> !citaService.tieneCitaPosterior(a.getPaciente().getId(),
+					LocalDate.ofInstant(a.getInicioEn(), Tiempo.ZONA)))
+			.map(ControlPendienteResponse::de)
+			.toList();
 	}
 
 	private List<Diagnostico> diagnosticos(List<AtencionRequest.DiagnosticoRequest> pedidos) {
