@@ -339,8 +339,8 @@ Flujo con IA (fase 11), sobre lo anterior:
 | 6 | Documentos: subida, clasificación manual, almacenamiento y visor | Documentos asociados al paciente — ✅ (pendiente la prueba en navegador) |
 | 7 | Pulido: reportes, datos sintéticos de demo, documentación | Versión funcional sin IA — ✅ (despliegue en la nube: opcional, pendiente) |
 | 7b | Rediseño visual del frontend, contraseñas con Argon2id y cifrado de los datos del paciente | ✅ |
-| 8 | **Revisión de documentos con llenado manual:** tablas de extracción, pantalla por categorías, validación del médico y paso a la historia (5.5) | Un documento subido se convierte en datos validados, sin IA |
-| 9 | **Tratamiento estructurado:** órdenes de exámenes, interconsultas, descanso médico y cita de control (5.4) | El médico indica receta y tratamiento como datos |
+| 8 | **Revisión de documentos con llenado manual:** tablas de extracción, pantalla por categorías, validación del médico y paso a la historia (5.5) | Un documento subido se convierte en datos validados, sin IA — ✅ |
+| 9 | **Tratamiento estructurado:** órdenes de exámenes, interconsultas, descanso médico y cita de control (5.4) | El médico indica receta y tratamiento como datos — ✅ |
 | 10 | **Despliegue sin IA:** Dockerfile, almacenamiento R2, Vercel + Render + Neon (6.3) | Sistema en línea con datos ficticios |
 | 11 | **IA de extracción:** servicio FastAPI + PyMuPDF/Docling + Ollama, que llena la pantalla de la fase 8 | Documentos a datos propuestos |
 | 12 | **Chatbot clínico** con RAG (5.6) | El médico consulta la historia en lenguaje natural |
