@@ -33,6 +33,11 @@ public interface CitaRepository extends JpaRepository<Cita, Long>, JpaSpecificat
 	boolean medicoTieneCitaALaHora(Long medicoId, LocalDate fecha, LocalTime hora, Collection<EstadoCita> estados,
 			Long excluirId);
 
+	@Query("""
+			select count(c) > 0 from Cita c
+			where c.paciente.id = :pacienteId and c.fecha > :despuesDe and c.estado in :estados""")
+	boolean pacienteTieneCitaPosterior(Long pacienteId, LocalDate despuesDe, Collection<EstadoCita> estados);
+
 	@Query("select coalesce(max(c.numeroTurno), 0) from Cita c where c.fecha = :fecha and c.consultorio.id = :consultorioId")
 	int ultimoTurno(LocalDate fecha, Long consultorioId);
 

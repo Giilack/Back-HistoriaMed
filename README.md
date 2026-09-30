@@ -85,7 +85,7 @@ Organizado **por módulos de negocio** (`com.historiamed.backend`):
 | `triaje` | Signos vitales, evaluador de alertas y prioridad |
 | `alergia` | Alergias del paciente |
 | `catalogo` | CIE-10 y medicamentos |
-| `atencion` | Atención médica, diagnósticos, receta, alerta de alergias, cierre y adendas |
+| `atencion` | Atención médica, diagnósticos, receta, alerta de alergias, plan de tratamiento (indicaciones, exámenes, interconsultas, descanso médico, control), cierre y adendas |
 | `documento` | Documentos clínicos y almacenamiento (`AlmacenamientoService`) |
 | `extraccion` | Revisión de los datos de un documento: llenado por categoría, validación del médico y paso a la historia |
 | `antecedente` | Antecedentes del paciente (personales, familiares, quirúrgicos, diagnósticos previos, medicación habitual) |
@@ -95,7 +95,7 @@ Organizado **por módulos de negocio** (`com.historiamed.backend`):
 | `demo` | Carga de datos ficticios |
 | `common`, `config` | Errores, seguridad, utilidades y configuración |
 
-Las migraciones de la base de datos están en `src/main/resources/db/migration` (V1 a V13; la V11 es una migración Java en el paquete `paciente`). **Una migración ya aplicada
+Las migraciones de la base de datos están en `src/main/resources/db/migration` (V1 a V14; la V11 es una migración Java en el paquete `paciente`). **Una migración ya aplicada
 no se modifica nunca**: los cambios se hacen con una migración nueva.
 
 ## Seguridad (resumen)

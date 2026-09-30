@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.historiamed.backend.atencion.dto.AtencionRequest;
 import com.historiamed.backend.atencion.dto.AtencionResponse;
+import com.historiamed.backend.atencion.dto.ControlPendienteResponse;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -67,6 +68,16 @@ public class AtencionController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public AtencionResponse agregarAdenda(@PathVariable Long id, @Valid @RequestBody AdendaRequest req) {
 		return service.agregarAdenda(id, req.texto());
+	}
+
+	/**
+	 * Controles que los médicos sugirieron y aún no tienen cita. Lo usa ADMISION para programarlos: no incluye
+	 * contenido clínico.
+	 */
+	@GetMapping("/controles-pendientes")
+	@PreAuthorize("hasRole('ADMISION')")
+	public List<ControlPendienteResponse> controlesPendientes() {
+		return service.controlesPendientes();
 	}
 
 	@GetMapping("/pacientes/{pacienteId}/atenciones")
