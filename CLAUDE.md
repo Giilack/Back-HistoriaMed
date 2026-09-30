@@ -33,7 +33,7 @@ ALMACENAMIENTO DE DOCUMENTOS:
 - Disco local (`backend/uploads/`, ignorado por Git) detrás de la interfaz `AlmacenamientoService`.
 - Cloudflare R2 (capa gratuita, compatible con S3) si se despliega en la nube. **No se usa Amazon S3** (es de pago).
 
-INTELIGENCIA ARTIFICIAL: ⏸️ **pospuesta** (ver `plan.md`). Cuando se retome: servicio en Python + FastAPI con modelos locales (Ollama/Hugging Face), sin enviar datos clínicos a APIs externas.
+INTELIGENCIA ARTIFICIAL: planificada para las fases 11 y 12 (ver `plan.md`, secciones 8 y 9). Antes van la revisión de documentos con llenado manual (fase 8), el tratamiento estructurado (fase 9) y el despliegue (fase 10). Cuando llegue: servicio en Python + FastAPI con modelos locales (Ollama, Qwen3 4B), sin enviar datos clínicos a APIs externas.
 
 # Cómo ejecutar
 
