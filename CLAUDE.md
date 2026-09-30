@@ -31,7 +31,7 @@ BASE DE DATOS:
 ALMACENAMIENTO DE DOCUMENTOS:
 
 - Disco local (`backend/uploads/`, ignorado por Git) detrás de la interfaz `AlmacenamientoService`.
-- Cloudflare R2 (capa gratuita, compatible con S3) si se despliega en la nube. **No se usa Amazon S3** (es de pago).
+- En la nube: dentro de PostgreSQL (tabla `archivos`, `ALMACENAMIENTO_TIPO=bd`), porque el disco del servidor gratuito se borra al reiniciar. Cloudflare R2 queda como alternativa si el volumen crece. **No se usa Amazon S3** (es de pago).
 
 INTELIGENCIA ARTIFICIAL: planificada para las fases 11 y 12 (ver `plan.md`, secciones 8 y 9). Antes van la revisión de documentos con llenado manual (fase 8), el tratamiento estructurado (fase 9) y el despliegue (fase 10). Cuando llegue: servicio en Python + FastAPI con modelos locales (Ollama, Qwen3 4B), sin enviar datos clínicos a APIs externas.
 
@@ -39,6 +39,7 @@ INTELIGENCIA ARTIFICIAL: planificada para las fases 11 y 12 (ver `plan.md`, secc
 
 - Backend: en `backend/`, `.\mvnw.cmd spring-boot:run` (lee `backend/.env`; plantilla en `.env.example`). Pruebas: `.\mvnw.cmd test`.
 - Frontend: en `frontend/`, `pnpm dev` → http://localhost:5173 (proxy de `/api` al puerto 8080).
+- Despliegue en la nube (Vercel + Render + Neon): `backend/docs/manual-despliegue.md`.
 - Datos de demostración ficticios: `DEMO=true` sobre una base sin pacientes (ver `backend/README.md`).
 
 # Reglas del proyecto

@@ -1,0 +1,9 @@
+# Lo que no debe entrar en la imagen: secretos, datos de pacientes y archivos de compilación locales
+.env
+uploads/
+target/
+.git/
+.github/
+.idea/
+.vscode/
+*.md
