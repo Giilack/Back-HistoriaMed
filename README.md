@@ -28,6 +28,9 @@ La lógica de negocio completa está en `plan.md` (en la carpeta raíz del proye
 | `DEMO` | `true` para cargar datos de demostración (ver abajo). Por defecto `false` |
 | `ALMACENAMIENTO_DIR` | Carpeta de los documentos subidos. Por defecto `uploads/` (ignorada por Git) |
 | `COOKIE_SECURE` | `true` en producción (HTTPS) |
+| `ALMACENAMIENTO_TIPO` | `local` (por defecto, carpeta `uploads/`) o `bd` (documentos en PostgreSQL; para la nube) |
+| `FORWARD_HEADERS` | `framework` detrás de un proxy (nube), para registrar la IP real del usuario. Por defecto `none` |
+| `PORT` | Puerto del servidor. Por defecto 8080 |
 
 ## Ejecutar
 
@@ -95,8 +98,13 @@ Organizado **por módulos de negocio** (`com.historiamed.backend`):
 | `demo` | Carga de datos ficticios |
 | `common`, `config` | Errores, seguridad, utilidades y configuración |
 
-Las migraciones de la base de datos están en `src/main/resources/db/migration` (V1 a V14; la V11 es una migración Java en el paquete `paciente`). **Una migración ya aplicada
+Las migraciones de la base de datos están en `src/main/resources/db/migration` (V1 a V15; la V11 es una migración Java en el paquete `paciente`). **Una migración ya aplicada
 no se modifica nunca**: los cambios se hacen con una migración nueva.
+
+## Despliegue en la nube
+
+Vercel (frontend) + Render (backend, con el `Dockerfile`) + Neon (PostgreSQL). Los pasos, las variables y la lista
+de validación están en [`docs/manual-despliegue.md`](docs/manual-despliegue.md).
 
 ## Seguridad (resumen)
 
