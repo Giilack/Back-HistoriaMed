@@ -5,7 +5,8 @@ services:
     name: historiamed-backend
     runtime: docker
     plan: free
-    healthCheckPath: /actuator/health
+    # liveness no consulta la base: así Neon puede apagarse cuando no hay uso real
+    healthCheckPath: /actuator/health/liveness
     envVars:
       # Base de datos (Neon). DB_URL con el formato jdbc:postgresql://HOST/BASE?sslmode=require
       - key: DB_URL
