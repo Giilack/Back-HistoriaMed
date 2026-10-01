@@ -89,7 +89,7 @@ dirección de los pacientes no se pueden descifrar.** `JWT_SECRET` lo genera Ren
 
 3. Esperar la primera construcción (varios minutos). Anotar la dirección del servicio, por ejemplo
    `https://historiamed-backend.onrender.com`.
-4. Comprobar: `https://DIRECCION-DE-RENDER/actuator/health` debe responder `{"status":"UP"}`.
+4. Comprobar: `https://DIRECCION-DE-RENDER/actuator/health` debe responder `{"status":"UP"}` (incluye la base de datos).
 
 ## 6. Frontend en Vercel
 
@@ -124,7 +124,7 @@ El administrador es `admin`, con la contraseña inicial del paso 4; el sistema o
 
 | # | Comprobación | Resultado esperado |
 |---|---|---|
-| 1 | `GET /actuator/health` en Render | `{"status":"UP"}` |
+| 1 | `GET /actuator/health` y `/actuator/health/liveness` en Render | `{"status":"UP"}` en los dos |
 | 2 | Abrir la dirección de Vercel | Pantalla de inicio de sesión, con candado HTTPS |
 | 3 | Entrar con `admision.demo` | Panel de inicio de admisión |
 | 4 | Recargar la página (F5) | La sesión se mantiene |
@@ -162,6 +162,25 @@ El respaldo solo sirve junto con la `CIFRADO_CLAVE` con la que se cifraron los d
 | El backend no arranca: "Falta CIFRADO_CLAVE" | Variable vacía o mal copiada | Debe ser Base64 de 32 bytes (44 caracteres) |
 | El backend se reinicia solo | Falta de memoria (512 MB) | Ver los registros; bajar `MaxRAMPercentage` en el `Dockerfile` |
 | Vercel falla al instalar | Versión de pnpm | El proyecto fija `pnpm@12.6.0` en `package.json`; activar Corepack en Vercel si hace falta |
+
+## 12.1 Mantener el backend despierto (opcional)
+
+El plan gratuito de Render duerme el servicio tras 15 minutos sin visitas. Para que el sistema responda al instante
+a cualquier hora, un servicio externo gratuito lo visita cada 10 minutos:
+
+1. Crear una cuenta en https://cron-job.org.
+2. **Create cronjob**:
+   - URL: `https://DIRECCION-DE-RENDER/actuator/health/liveness`
+   - Ejecución: cada 10 minutos.
+   - Activar el aviso por correo si falla, para enterarse si el servicio se cae.
+3. Guardar y comprobar en el historial que las llamadas responden 200.
+
+Usar siempre `/actuator/health/liveness` y **no** `/actuator/health`: el segundo consulta la base de datos, y con
+una visita cada 10 minutos Neon nunca se apagaría y consumiría sus horas gratuitas de cómputo. `liveness` solo
+comprueba que el proceso responde.
+
+Un mes tiene 744 horas y la capa gratuita de Render da 750 horas al mes: alcanza para **un** servicio encendido
+todo el tiempo, no para dos.
 
 ## 13. Límites de la capa gratuita
 
