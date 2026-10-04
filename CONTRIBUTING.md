@@ -7,7 +7,7 @@ El equipo usa **GitFlow**. Nadie sube cambios directamente a `main` ni a `develo
 
 | Rama | Sale de | Se une a | Para qué |
 |---|---|---|---|
-| `main` | — | — | Lo que está en producción. Render la despliega automáticamente. Cada versión lleva una etiqueta (`v1.0.0`, `v1.1.0`…). |
+| `main` | — | — | Versión estable. Cada versión lleva una etiqueta (`v0.9.0`, `v1.0.0`…). |
 | `develop` | `main` | — | Integración: aquí se juntan las funcionalidades terminadas. |
 | `feature/<nombre>` | `develop` | `develop` | Una tarea o funcionalidad. |
 | `release/<versión>` | `develop` | `main` y `develop` | Preparar una versión: solo correcciones, nada nuevo. |
@@ -91,7 +91,14 @@ Y además:
 - **Nunca** subir `.env`, claves, contraseñas ni la carpeta `uploads/` (contiene documentos de pacientes).
 - Solo datos ficticios de pacientes, también en capturas y pruebas.
 - Código y mensajes en español; sufijos técnicos en inglés (`PacienteService`).
-- Las reglas del proyecto están en `CLAUDE.md` y la lógica de negocio en `plan.md`.
+- La lógica de negocio y las decisiones están en `plan.md`. Reglas que no se discuten:
+  - **Mínimo privilegio:** el ADMIN no ve datos clínicos y ADMISION no ve contenido clínico. Los permisos los decide
+    el backend (`@PreAuthorize`), no el frontend.
+  - **La historia clínica no se borra ni se reescribe:** las atenciones cerradas son inmutables (se corrigen con
+    adendas); alergias y documentos se inactivan o anulan con un motivo.
+  - **Todo acceso a datos clínicos se audita** (`AuditoriaService`).
+  - **Las reglas clínicas críticas son deterministas** (alertas de triaje, alergias al recetar), nunca dependen de la IA.
+  - Un módulo no usa el repositorio de otro, sino su servicio.
 - **Migraciones de base de datos:** nunca modificar una que ya está en `develop`; crear una nueva
   (`V16__...sql`). Si dos ramas crean el mismo número, la que se une después debe renumerar la suya **antes** de
   unirse. Avisar en el PR qué número se usa.

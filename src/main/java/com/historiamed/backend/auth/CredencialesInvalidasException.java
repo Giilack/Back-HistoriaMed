@@ -6,7 +6,7 @@ package com.historiamed.backend.auth;
 public class CredencialesInvalidasException extends RuntimeException {
 
 	public CredencialesInvalidasException() {
-		super("Usuario o contraseña incorrectos");
+		super("Credenciales inválidas");
 	}
 
 	public CredencialesInvalidasException(String mensaje) {

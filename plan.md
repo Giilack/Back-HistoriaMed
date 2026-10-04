@@ -1,6 +1,6 @@
 # HistoriaMed — Plan y lógica de negocio
 
-> Documento vivo. Define **qué** hace el sistema y **por qué**. La estructura técnica del código está en `CLAUDE.md`.
+> Documento vivo. Define **qué** hace el sistema y **por qué**. La estructura técnica del código está en `README.md`.
 
 > ⏸️ **Decisión (27/09/2026): la IA queda pospuesta.** Por ahora no se usará ninguna API de IA ni modelos abiertos. Las secciones 5.5 (extracción) y 5.6 (chatbot) describen el diseño objetivo, pero se implementarán más adelante. Mientras tanto, los documentos se suben, almacenan y visualizan **sin procesamiento automático**, y el sistema se diseña para que la IA pueda conectarse después sin rehacer nada.
 
@@ -347,7 +347,7 @@ Flujo con IA (fase 11), sobre lo anterior:
 | 7b | Rediseño visual del frontend, contraseñas con Argon2id y cifrado de los datos del paciente | ✅ |
 | 8 | **Revisión de documentos con llenado manual:** tablas de extracción, pantalla por categorías, validación del médico y paso a la historia (5.5) | Un documento subido se convierte en datos validados, sin IA — ✅ |
 | 9 | **Tratamiento estructurado:** órdenes de exámenes, interconsultas, descanso médico y cita de control (5.4) | El médico indica receta y tratamiento como datos — ✅ |
-| 10 | **Despliegue sin IA:** Dockerfile, documentos en la base, Vercel + Render + Neon (6.3) | Sistema en línea con datos ficticios — preparado y probado en local; falta el despliegue real (ver `docs/manual-despliegue.md`) |
+| 10 | **Despliegue sin IA:** Dockerfile, documentos en la base, Vercel + Render + Neon (6.3) | Sistema en línea con datos ficticios — preparación unida a `develop` (documentos en la base, integración continua); el despliegue está en la rama `feature/despliegue`, pendiente de revisión. **Aún no desplegado.** |
 | 11 | **IA de extracción:** servicio FastAPI + PyMuPDF/Docling + Ollama, que llena la pantalla de la fase 8 | Documentos a datos propuestos |
 | 12 | **Chatbot clínico** con RAG (5.6) | El médico consulta la historia en lenguaje natural |
 | 13 | **Despliegue con IA** en Oracle Cloud | Sistema completo en línea |
@@ -360,14 +360,14 @@ Flujo con IA (fase 11), sobre lo anterior:
 
 ## 9. Reparto del equipo (4 integrantes)
 
-Cada bloque se trabaja en su propia rama y se une a `main` con un Pull Request. Los bloques casi no comparten archivos.
+Cada bloque se trabaja en su propia rama `feature/*` y se une a `develop` con un Pull Request (GitFlow, ver `CONTRIBUTING.md`). Los bloques casi no comparten archivos.
 
 | Integrante | Bloque | Rama | Repositorio | Contenido |
 |---|---|---|---|---|
-| Giancarlo | Revisión de documentos: frontend (fase 8) | `extraccion-frontend` | frontend | Pantalla de revisión por categorías, llenado manual y validación |
-| SmooDZero | Revisión de documentos: backend (fase 8) | `extraccion-backend` | backend | Migración V13, API de llenado y validación, paso de los datos a la historia, auditoría |
-| Magdyrams | Tratamiento estructurado (fase 9) | `tratamiento` | backend y frontend | Migración V14, órdenes, interconsultas, descanso médico imprimible y cita de control |
-| Annd-Aiz | Despliegue (fase 10) | `despliegue` | backend y frontend | Dockerfile, `AlmacenamientoBaseDatos`, configuración de Vercel, Render y Neon, integración continua, manual de despliegue |
+| Giancarlo | Revisión de documentos: frontend (fase 8) | `feature/revision-documentos-frontend` | frontend | Pantalla de revisión por categorías, llenado manual y validación |
+| SmooDZero | Revisión de documentos: backend (fase 8) | `feature/revision-documentos-backend` | backend | Migración V13, API de llenado y validación, paso de los datos a la historia, auditoría |
+| Magdyrams | Tratamiento estructurado (fase 9) | `feature/tratamiento-backend`, `feature/tratamiento-frontend` | backend y frontend | Migración V14, órdenes, interconsultas, descanso médico imprimible y cita de control |
+| Annd-Aiz | Despliegue (fase 10) | `feature/preparacion-nube` (unida), `feature/despliegue` (pendiente) | backend y frontend | Dockerfile, `AlmacenamientoBaseDatos`, configuración de Vercel, Render y Neon, integración continua, manual de despliegue |
 
 - **Orden:** el backend de la fase 8 va primero, porque la pantalla usa su API. Las fases 9 y 10 pueden ir en paralelo.
 - **Migraciones reservadas:** V13 para la fase 8 y V14 para la fase 9, para que dos ramas no creen el mismo número.
