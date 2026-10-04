@@ -65,7 +65,7 @@ public class AuthService {
 
 		if (u == null) {
 			passwordEncoder.matches(req.password(), hashFicticio);
-			auditarFallo(null, req.username(), null, AccionAuditoria.LOGIN_FALLIDO, "Usuario inexistente");
+			auditarFallo(null, req.username(), null, AccionAuditoria.LOGIN_FALLIDO, "Credenciales inválidas");
 			throw new CredencialesInvalidasException();
 		}
 		if (!u.isActivo()) {

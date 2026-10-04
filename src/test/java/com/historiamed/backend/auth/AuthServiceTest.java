@@ -61,7 +61,7 @@ class AuthServiceTest {
 
 		assertThatThrownBy(() -> service.login(new LoginRequest("nadie", "x")))
 			.isInstanceOf(CredencialesInvalidasException.class)
-			.hasMessage("Usuario o contraseña incorrectos");
+			.hasMessage("Credenciales inválidas");
 	}
 
 	@Test
