@@ -166,7 +166,14 @@ El respaldo solo sirve junto con la `CIFRADO_CLAVE` con la que se cifraron los d
 ## 12.1 Mantener el backend despierto (opcional)
 
 El plan gratuito de Render duerme el servicio tras 15 minutos sin visitas. Para que el sistema responda al instante
-a cualquier hora, un servicio externo gratuito lo visita cada 10 minutos:
+a cualquier hora, algo debe visitarlo cada 10 minutos.
+
+**Implementado:** el flujo de GitHub Actions `.github/workflows/mantener-despierto.yml` lo visita cada 10 minutos desde
+`main` (gratis en repositorios públicos). Se ve en GitHub → **Actions → Mantener despierto el backend**, y se puede
+ejecutar a mano con *Run workflow*. GitHub puede retrasar los flujos programados unos minutos y los desactiva si el
+repositorio pasa 60 días sin actividad.
+
+**Alternativa más puntual** (servicio externo gratuito):
 
 1. Crear una cuenta en https://cron-job.org.
 2. **Create cronjob**:
