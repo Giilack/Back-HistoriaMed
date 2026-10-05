@@ -101,6 +101,11 @@ Organizado **por módulos de negocio** (`com.historiamed.backend`):
 Las migraciones de la base de datos están en `src/main/resources/db/migration` (V1 a V15; la V11 es una migración Java en el paquete `paciente`). **Una migración ya aplicada
 no se modifica nunca**: los cambios se hacen con una migración nueva.
 
+## Despliegue en la nube
+
+Vercel (frontend) + Render (backend, con el `Dockerfile`) + Neon (PostgreSQL). Los pasos, las variables y la lista
+de validación están en [`docs/manual-despliegue.md`](docs/manual-despliegue.md).
+
 ## Seguridad (resumen)
 
 - Contraseñas con hash Argon2id (los hashes BCrypt anteriores se actualizan al iniciar sesión); bloqueo de 15 minutos tras 5 intentos fallidos; contraseña temporal obligatoria de cambiar.

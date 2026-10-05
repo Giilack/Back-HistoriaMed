@@ -1,0 +1,38 @@
+# Definición del servicio en Render (Blueprint). Ver docs/manual-despliegue.md.
+# Los valores con "sync: false" son secretos: Render los pide al crear el servicio y no se guardan en Git.
+services:
+  - type: web
+    name: historiamed-backend
+    runtime: docker
+    plan: free
+    # liveness no consulta la base: así Neon puede apagarse cuando no hay uso real
+    healthCheckPath: /actuator/health/liveness
+    envVars:
+      # Base de datos (Neon). DB_URL con el formato jdbc:postgresql://HOST/BASE?sslmode=require
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      # Secretos propios de producción: distintos de los de cada computadora de desarrollo
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CIFRADO_CLAVE
+        sync: false
+      - key: ADMIN_INICIAL_USERNAME
+        value: admin
+      - key: ADMIN_INICIAL_PASSWORD
+        sync: false
+      # Dirección del frontend en Vercel, por ejemplo https://historiamed.vercel.app
+      - key: CORS_ORIGENES
+        sync: false
+      - key: ALMACENAMIENTO_TIPO
+        value: bd
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: FORWARD_HEADERS
+        value: framework
+      # Poner en "true" solo la primera vez, para cargar los datos ficticios; después volver a "false"
+      - key: DEMO
+        value: "false"
