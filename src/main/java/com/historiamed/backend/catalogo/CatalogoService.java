@@ -27,6 +27,18 @@ public class CatalogoService {
 
 	private final MedicamentoRepository medicamentoRepository;
 
+	/** El catálogo CIE-10 completo, ordenado por código (para indicarle a la IA qué códigos puede usar). */
+	@Transactional(readOnly = true)
+	public List<Cie10> todosCie10() {
+		return cie10Repository.findAll(Sort.by("codigo"));
+	}
+
+	/** Medicamentos activos, ordenados por nombre (para indicarle a la IA qué medicamentos puede usar). */
+	@Transactional(readOnly = true)
+	public List<Medicamento> medicamentosActivos() {
+		return medicamentoRepository.findByActivoTrueOrderByNombreAscConcentracionAsc();
+	}
+
 	/** Busca por código ("J02", "j02.9") o por palabras de la descripción ("faringitis aguda"). */
 	@Transactional(readOnly = true)
 	public List<Cie10> buscarCie10(String q) {

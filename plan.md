@@ -4,6 +4,12 @@
 
 > ⏸️ **Decisión (27/09/2026): la IA queda pospuesta.** Por ahora no se usará ninguna API de IA ni modelos abiertos. Las secciones 5.5 (extracción) y 5.6 (chatbot) describen el diseño objetivo, pero se implementarán más adelante. Mientras tanto, los documentos se suben, almacenan y visualizan **sin procesamiento automático**, y el sistema se diseña para que la IA pueda conectarse después sin rehacer nada.
 
+> 🤖 **Decisión (01/10/2026): la IA usa Gemini (API de Google).** La consulta la hace el propio backend, detrás de
+> la interfaz `ProveedorIA`, sin un servicio Python aparte: así funciona en el mismo despliegue gratuito
+> (fase 13 ya no hace falta). Gemini lee el PDF o la imagen directamente, sin OCR propio. **Condición: solo datos
+> ficticios.** En la capa gratuita, Google puede usar lo enviado para mejorar sus productos y puede haber revisión
+> humana; sus condiciones piden no enviar información personal o sensible. Ver P6 y 6.1.
+
 > ▶️ **Actualización (30/09/2026): se define el camino hacia la IA.** Primero se construye la **revisión de documentos con llenado manual** (fase 8) y el **tratamiento estructurado** (fase 9), y se despliega (fase 10). La IA llega después (fases 11 y 12) y llena **la misma pantalla de revisión**, de modo que el sistema funciona completo aunque la IA no esté disponible. Ver la sección 8 (fases) y la 9 (reparto del equipo).
 
 ## 1. Alcance
@@ -27,7 +33,7 @@ Paciente llega → ADMISIÓN → TRIAJE → MÉDICO → Atención cerrada
 | P3 | **La historia clínica no se borra ni se reescribe** | Una atención cerrada es inmutable. Las correcciones se hacen con una **adenda** (nota aclaratoria con fecha y autor). Borrado solo lógico. |
 | P4 | **Todo acceso queda registrado** | Quién vio o modificó qué historia, cuándo y desde dónde (auditoría). |
 | P5 | **Datos sintéticos** | En desarrollo y sustentación **nunca** se usan datos reales de pacientes. |
-| P6 | **Los datos clínicos no salen del servidor** | La IA corre en local. No se envían historias clínicas a APIs de terceros. |
+| P6 | **Los datos clínicos no salen del servidor** sin garantías | Con datos ficticios (demostración) se usa la capa gratuita de Gemini. Con pacientes reales solo se permitiría un servicio que no use los datos para entrenar (capa de pago de Gemini o Vertex AI, con acuerdo de tratamiento de datos) o un modelo local. Cambiar de proveedor es configuración (`ProveedorIA`). |
 | P7 | **Todo gratuito** | Solo software libre o capas gratuitas sin riesgo de cobro. |
 | P8 | **Las reglas críticas no dependen de la IA** | Alertas de alergias y validaciones se hacen con reglas deterministas, no con el LLM. |
 
@@ -229,13 +235,20 @@ Subida (ADMISION, TRIAJE o MEDICO)
 - **Los códigos no los inventa nadie:** el diagnóstico y el medicamento se eligen del catálogo con el buscador que ya usa la atención.
 - Cada apertura, llenado y validación se registra en la auditoría.
 
-Flujo con IA (fase 11), sobre lo anterior:
+**Extracción con IA (fase 11, implementada):**
 
-1. Se sube el archivo (PDF, JPG o PNG; máximo 10 MB) y se asocia al paciente.
-2. **Clasificación automática** del tipo de documento: `LABORATORIO`, `RECETA`, `INFORME_MEDICO`, `EPICRISIS`, `IMAGENOLOGIA`, `REFERENCIA`, `OTRO`.
-3. **Extracción** de datos estructurados según el tipo (por ejemplo, en laboratorio: examen, valor, unidad, rango y fecha).
-4. El resultado queda como **sugerencia** en `PENDIENTE_REVISION`. El médico ve el documento original al lado de los datos extraídos, los corrige y los confirma. Solo entonces pasan a la historia clínica (P2).
-5. El procesamiento es **asíncrono**: la subida responde al instante y el estado se actualiza cuando termina.
+1. En una revisión **vacía**, TRIAJE o MEDICO pulsan **"Extraer con IA"**. Se registra en la auditoría (`CONSULTA_IA`).
+2. El backend envía el documento (PDF, JPG o PNG) a Gemini con instrucciones y los **catálogos CIE-10 y de
+   medicamentos**: la IA elige códigos de esas listas en lugar de inventarlos.
+3. Gemini responde en JSON con un esquema fijo: cada dato con su categoría, campos, **fragmento de origen y página**.
+4. Cada dato pasa por **las mismas reglas que el llenado manual**. Si no las cumple (por ejemplo, un código fuera
+   del catálogo), no se pierde: queda como "otra información" para que la persona decida.
+5. Los datos quedan **propuestos** y marcados con **IA**. Desde ahí sigue el flujo de siempre: se corrigen y el
+   médico valida (P2). Mientras la IA trabaja, la revisión no se puede editar.
+6. Es **asíncrono**: el pedido responde al instante (estado `PROCESANDO`) y la pantalla consulta el estado cada 3
+   segundos. Si la IA falla (límite gratuito, documento ilegible), queda el motivo y se puede reintentar o llenar a
+   mano. Si el servidor se reinicia a mitad, la consulta queda como error para reintentar.
+7. Sin `GEMINI_API_KEY` la IA queda desactivada y el sistema funciona igual, a mano.
 
 **Limitación a considerar:** los PDF digitales y los documentos impresos escaneados se extraen bien. **La letra manuscrita**, sobre todo la médica, tiene una precisión baja con herramientas gratuitas. Se procesa como "mejor esfuerzo" y siempre requiere revisión. Conviene mencionarlo como limitación en la sustentación.
 
@@ -275,11 +288,25 @@ Flujo con IA (fase 11), sobre lo anterior:
 | Frontend | React + TypeScript + Vite + Tailwind + shadcn/ui | Gratis |
 | Backend | Java 21 + Spring Boot 4 + Spring Security (JWT) + JPA + Flyway | Gratis |
 | Base de datos | PostgreSQL 18 (+ pgvector para el chatbot) | Gratis |
-| Servicio de IA ⏸️ | Python + FastAPI | Gratis (pospuesto) |
-| **LLM** (fases 11–12) | Qwen3 4B en Ollama, local y configurable (ver 6.1) | Gratis |
-| Lectura de PDF y OCR (fase 11) | PyMuPDF para PDF digitales; Docling con OCR para escaneos | Gratis |
+| **IA** (fases 11–12) | API de Gemini (`gemini-3.8-flash`, configurable con `GEMINI_MODELO`), llamada desde el backend Java; local con Ollama como alternativa (ver 6.1) | Gratis con límites; solo datos ficticios |
+| Lectura de PDF y OCR (fase 11) | La hace Gemini directamente (PDF digitales, escaneos e imágenes) | Incluido |
 | Embeddings ⏸️ | Modelo multilingüe de Hugging Face (local) | Gratis (pospuesto) |
 | **Archivos** | **Disco local en desarrollo; Cloudflare R2 en la nube** (ver 6.2) | Gratis |
+
+### 6.0 Sobre Gemini (decisión del 01/10/2026)
+
+- ✅ **Calidad y simplicidad:** lee PDF escaneados e imágenes sin OCR propio, entiende tablas de laboratorio y
+  responde en JSON con un esquema. Funciona desde el mismo servidor gratuito: no hace falta un equipo con GPU ni
+  Oracle Cloud.
+- ⚠️ **Privacidad:** en la capa gratuita, lo enviado puede usarse para mejorar los productos de Google y puede
+  haber revisión humana. Por eso: **solo datos ficticios**, las instrucciones piden no copiar datos que
+  identifiquen al paciente, y el envío queda auditado.
+- ⚠️ **Límites:** la capa gratuita limita las consultas por minuto y por día (se ven en Google AI Studio). Si se
+  supera, el sistema lo informa y se puede reintentar o llenar a mano.
+- **Con pacientes reales:** capa de pago o Vertex AI (no usan los datos para entrenar) o un modelo local. El cambio
+  es una nueva implementación de `ProveedorIA`, sin tocar el resto.
+- La oferta de Gemini para estudiantes es la suscripción a la aplicación; el sistema usa la **API**, que se activa
+  aparte en Google AI Studio.
 
 ### 6.1 Sobre DeepSeek
 > ⏸️ Decisión pospuesta junto con la IA. Se conserva este análisis para cuando se retome.
@@ -349,9 +376,9 @@ Flujo con IA (fase 11), sobre lo anterior:
 | 8 | **Revisión de documentos con llenado manual:** tablas de extracción, pantalla por categorías, validación del médico y paso a la historia (5.5) | Un documento subido se convierte en datos validados, sin IA — ✅ |
 | 9 | **Tratamiento estructurado:** órdenes de exámenes, interconsultas, descanso médico y cita de control (5.4) | El médico indica receta y tratamiento como datos — ✅ |
 | 10 | **Despliegue sin IA:** Dockerfile, documentos en la base, Vercel + Render + Neon (6.3) | Sistema en línea con datos ficticios — rama `feature/despliegue` (Annd-Aiz) revisada y unida en la versión `v1.0.0`; Giancarlo crea los servicios y despliega desde `main` |
-| 11 | **IA de extracción:** servicio FastAPI + PyMuPDF/Docling + Ollama, que llena la pantalla de la fase 8 | Documentos a datos propuestos |
+| 11 | **IA de extracción** con Gemini desde el backend, que llena la pantalla de la fase 8 (5.5) | Documentos a datos propuestos |
 | 12 | **Chatbot clínico** con RAG (5.6) | El médico consulta la historia en lenguaje natural |
-| 13 | **Despliegue con IA** en Oracle Cloud | Sistema completo en línea |
+| 13 | ~~Despliegue con IA en Oracle Cloud~~ | Ya no hace falta: con Gemini basta agregar `GEMINI_API_KEY` en Render |
 
 > Las fases 1 a 5 son el **núcleo**: sin ellas no hay sistema clínico. Las fases 8 a 10 dan valor sin depender de la IA; la IA (fases 11 a 13) es el diferenciador y se conecta sobre lo anterior.
 >
