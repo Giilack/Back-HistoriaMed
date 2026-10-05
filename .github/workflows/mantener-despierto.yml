@@ -1,0 +1,17 @@
+# Visita el backend cada 10 minutos para que el plan gratuito de Render no lo duerma (se duerme tras 15 minutos sin uso).
+# Usa /actuator/health/liveness, que no consulta la base: así Neon puede suspenderse cuando no hay uso real.
+# GitHub ejecuta los flujos programados solo desde la rama main y puede retrasarlos unos minutos en horas de mucha carga.
+name: Mantener despierto el backend
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  visitar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Visitar el health check liveness
+        run: curl --fail --silent --show-error --max-time 120 --retry 2 --retry-delay 20 https://historiamed-backend.onrender.com/actuator/health/liveness
