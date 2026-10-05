@@ -151,7 +151,9 @@ public class DocumentoService {
 		return DocumentoResponse.de(d);
 	}
 
-	private Documento obtener(Long id) {
+	/** El documento, para otros módulos (por ejemplo, la revisión de sus datos). No se audita como consulta. */
+	@Transactional(readOnly = true)
+	public Documento obtener(Long id) {
 		return repository.findById(id).orElseThrow(() -> new RecursoNoEncontradoException("Documento", id));
 	}
 

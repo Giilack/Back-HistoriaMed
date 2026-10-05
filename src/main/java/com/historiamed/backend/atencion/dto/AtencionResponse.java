@@ -1,12 +1,14 @@
 package com.historiamed.backend.atencion.dto;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 import com.historiamed.backend.atencion.Adenda;
 import com.historiamed.backend.atencion.Atencion;
 import com.historiamed.backend.atencion.Diagnostico;
 import com.historiamed.backend.atencion.EstadoAtencion;
+import com.historiamed.backend.atencion.ItemPlan;
 import com.historiamed.backend.atencion.ItemReceta;
 import com.historiamed.backend.atencion.TipoDiagnostico;
 import com.historiamed.backend.atencion.ViaAdministracion;
@@ -18,7 +20,8 @@ import com.historiamed.backend.usuario.Usuario;
 public record AtencionResponse(Long id, Long citaId, PacienteAtencion paciente, MedicoAtencion medico,
 		EstadoAtencion estado, Instant inicioEn, Instant cerradaEn, String motivoConsulta, String tiempoEnfermedad,
 		String anamnesis, String examenFisico, String planTrabajo, String indicaciones,
-		List<DiagnosticoResponse> diagnosticos, List<ItemRecetaResponse> receta, List<AdendaResponse> adendas) {
+		List<DiagnosticoResponse> diagnosticos, List<ItemRecetaResponse> receta, List<ItemPlanResponse> plan,
+		DescansoResponse descanso, ControlResponse control, List<AdendaResponse> adendas) {
 
 	public record PacienteAtencion(Long id, String numeroHc, String nombreCompleto, String edad, Sexo sexo) {
 	}
@@ -47,6 +50,22 @@ public record AtencionResponse(Long id, Long citaId, PacienteAtencion paciente, 
 
 	}
 
+	public record ItemPlanResponse(ItemPlan.Tipo tipo, ItemPlan.Categoria categoria, String descripcion,
+			String detalle) {
+
+		static ItemPlanResponse de(ItemPlan i) {
+			return new ItemPlanResponse(i.getTipo(), i.getCategoria(), i.getDescripcion(), i.getDetalle());
+		}
+
+	}
+
+	/** @param hasta último día del descanso, incluido */
+	public record DescansoResponse(int dias, LocalDate desde, LocalDate hasta) {
+	}
+
+	public record ControlResponse(LocalDate fecha, String nota) {
+	}
+
 	public record AdendaResponse(Long id, String autor, String texto, Instant creadoEn) {
 
 		static AdendaResponse de(Adenda a) {
@@ -66,6 +85,10 @@ public record AtencionResponse(Long id, Long citaId, PacienteAtencion paciente, 
 				a.getPlanTrabajo(), a.getIndicaciones(),
 				a.getDiagnosticos().stream().map(DiagnosticoResponse::de).toList(),
 				a.getReceta().stream().map(ItemRecetaResponse::de).toList(),
+				a.getPlan().stream().map(ItemPlanResponse::de).toList(),
+				a.getDescansoDias() == null ? null
+						: new DescansoResponse(a.getDescansoDias(), a.getDescansoDesde(), a.descansoHasta()),
+				a.getControlFecha() == null ? null : new ControlResponse(a.getControlFecha(), a.getControlNota()),
 				a.getAdendas().stream().map(AdendaResponse::de).toList());
 	}
 

@@ -8,6 +8,7 @@ import java.nio.file.StandardOpenOption;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.PathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
@@ -17,10 +18,12 @@ import com.historiamed.backend.common.util.Tiempo;
 import com.historiamed.backend.config.HistoriaMedProperties;
 
 /**
- * Almacenamiento en disco local: {directorio}/2026/09/uuid.pdf. Gratuito y suficiente para desarrollo y
- * sustentación. La carpeta está en .gitignore (contiene datos de pacientes).
+ * Almacenamiento en disco local: {directorio}/2026/09/uuid.pdf. Es el predeterminado
+ * ({@code historiamed.almacenamiento.tipo=local}): gratuito y suficiente para desarrollo y sustentación. La
+ * carpeta está en .gitignore (contiene datos de pacientes).
  */
 @Component
+@ConditionalOnProperty(name = "historiamed.almacenamiento.tipo", havingValue = "local", matchIfMissing = true)
 public class AlmacenamientoLocal implements AlmacenamientoService {
 
 	private static final DateTimeFormatter CARPETA_MES = DateTimeFormatter.ofPattern("yyyy/MM");

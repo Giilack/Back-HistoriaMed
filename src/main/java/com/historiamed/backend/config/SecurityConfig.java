@@ -45,7 +45,10 @@ public class SecurityConfig {
 			.authorizeHttpRequests(auth -> auth
 				.requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/refresh", "/api/auth/logout")
 				.permitAll()
-				.requestMatchers("/actuator/health", "/error")
+				// health: estado completo (incluye la base de datos). liveness: solo "el proceso responde", sin tocar
+				// la base; es el que usan la plataforma y el aviso periódico que evita que el servidor se duerma, así
+				// la base gratuita (Neon) puede apagarse cuando no hay uso real.
+				.requestMatchers("/actuator/health", "/actuator/health/liveness", "/error")
 				.permitAll()
 				.anyRequest()
 				.authenticated())

@@ -1,6 +1,6 @@
 # HistoriaMed — Plan y lógica de negocio
 
-> Documento vivo. Define **qué** hace el sistema y **por qué**. La estructura técnica del código está en `CLAUDE.md`.
+> Documento vivo. Define **qué** hace el sistema y **por qué**. La estructura técnica del código está en `README.md`.
 
 > ⏸️ **Decisión (27/09/2026): la IA queda pospuesta.** Por ahora no se usará ninguna API de IA ni modelos abiertos. Las secciones 5.5 (extracción) y 5.6 (chatbot) describen el diseño objetivo, pero se implementarán más adelante. Mientras tanto, los documentos se suben, almacenan y visualizan **sin procesamiento automático**, y el sistema se diseña para que la IA pueda conectarse después sin rehacer nada.
 
@@ -291,12 +291,18 @@ Flujo con IA (fase 11), sobre lo anterior:
 - **Requisito:** al menos 16 GB de RAM para modelos de 7–8B parámetros. Con GPU es más rápido.
 - **Equipo de desarrollo (30/09/2026):** 7,6 GB de RAM, NVIDIA RTX 2050 con 4 GB de VRAM, i5-12450H. Alcanza para un modelo de **4B** (unos 3 GB en la GPU), no para uno de 7–8B. Elección: **Qwen3 4B** (alternativa: Gemma 3 4B), procesando un documento a la vez.
 
-### 6.2 Sobre Cloudflare R2
+### 6.2 Almacenamiento de documentos
+> **Decisión (30/09/2026):** en la nube los documentos se guardan **en PostgreSQL** (tabla `archivos`,
+> `AlmacenamientoBaseDatos`, variable `ALMACENAMIENTO_TIPO=bd`). No requiere otra cuenta ni tarjeta, se pudo probar
+> en local y los documentos entran en el mismo respaldo que los datos. Límite: los 0,5 GB de la capa gratuita de
+> Neon. Cloudflare R2 queda como alternativa si el volumen crece; el análisis se conserva abajo.
+
 - ✅ **Buena elección para la nube.** Tiene una capa gratuita (10 GB de almacenamiento al mes y **sin costo por descarga**), y es compatible con la API de S3, así que se usa con el SDK de AWS.
 - ⚠️ Para activarlo, Cloudflare pide registrar un método de pago. Mientras no se superen los límites no cobra, pero conviene configurar alertas. Verifica las condiciones vigentes al activarlo.
-- **Diseño:** una interfaz `AlmacenamientoService` con dos implementaciones:
-  - `AlmacenamientoLocal`: carpeta `backend/uploads/`, para desarrollo y sustentación, sin cuentas ni tarjeta.
-  - `AlmacenamientoR2`: para la nube, activada por configuración.
+- **Diseño:** una interfaz `AlmacenamientoService` con una implementación por destino, elegida por configuración:
+  - `AlmacenamientoLocal`: carpeta `backend/uploads/`, para desarrollo, sin cuentas ni tarjeta.
+  - `AlmacenamientoBaseDatos`: tabla `archivos` de PostgreSQL, para la nube (implementada).
+  - `AlmacenamientoR2`: no implementada; se agregaría igual, sin tocar el resto del sistema.
 - El bucket es **privado**. Los archivos se descargan solo con **URLs prefirmadas** de corta duración (5 min), y cada descarga se audita.
 
 ### 6.3 Despliegue en la nube (fase 10)
@@ -306,7 +312,7 @@ Flujo con IA (fase 11), sobre lo anterior:
 | Frontend | **Vercel** | Gratis y se despliega con cada push. Reenvía `/api` al backend (como Vite en local), así el navegador ve un solo sitio y la cookie de sesión `SameSite=Strict` funciona. |
 | Backend | **Render** (Docker) | Ejecuta Java gratis. Se duerme tras 15 minutos sin uso: abrirlo antes de la sustentación. |
 | Base de datos | **Neon** (PostgreSQL) | Gratis y permanente (la base gratuita de Render caduca). |
-| Documentos | **Cloudflare R2** | El disco de Render se borra en cada reinicio (ver 6.2). |
+| Documentos | **La misma base (Neon)** | El disco de Render se borra en cada reinicio; se guardan en PostgreSQL (ver 6.2). |
 | IA (fase 13) | **Oracle Cloud Always Free** | La única opción gratuita con memoria para Ollama. Si no se consigue la cuenta: un servidor pequeño de pago. |
 
 - Vercel **no** puede ejecutar el backend: solo sirve el frontend.
@@ -339,9 +345,9 @@ Flujo con IA (fase 11), sobre lo anterior:
 | 6 | Documentos: subida, clasificación manual, almacenamiento y visor | Documentos asociados al paciente — ✅ (pendiente la prueba en navegador) |
 | 7 | Pulido: reportes, datos sintéticos de demo, documentación | Versión funcional sin IA — ✅ (despliegue en la nube: opcional, pendiente) |
 | 7b | Rediseño visual del frontend, contraseñas con Argon2id y cifrado de los datos del paciente | ✅ |
-| 8 | **Revisión de documentos con llenado manual:** tablas de extracción, pantalla por categorías, validación del médico y paso a la historia (5.5) | Un documento subido se convierte en datos validados, sin IA |
-| 9 | **Tratamiento estructurado:** órdenes de exámenes, interconsultas, descanso médico y cita de control (5.4) | El médico indica receta y tratamiento como datos |
-| 10 | **Despliegue sin IA:** Dockerfile, almacenamiento R2, Vercel + Render + Neon (6.3) | Sistema en línea con datos ficticios |
+| 8 | **Revisión de documentos con llenado manual:** tablas de extracción, pantalla por categorías, validación del médico y paso a la historia (5.5) | Un documento subido se convierte en datos validados, sin IA — ✅ |
+| 9 | **Tratamiento estructurado:** órdenes de exámenes, interconsultas, descanso médico y cita de control (5.4) | El médico indica receta y tratamiento como datos — ✅ |
+| 10 | **Despliegue sin IA:** Dockerfile, documentos en la base, Vercel + Render + Neon (6.3) | Sistema en línea con datos ficticios — preparación unida a `develop` (documentos en la base, integración continua); el despliegue está en la rama `feature/despliegue`, pendiente de revisión. **Aún no desplegado.** |
 | 11 | **IA de extracción:** servicio FastAPI + PyMuPDF/Docling + Ollama, que llena la pantalla de la fase 8 | Documentos a datos propuestos |
 | 12 | **Chatbot clínico** con RAG (5.6) | El médico consulta la historia en lenguaje natural |
 | 13 | **Despliegue con IA** en Oracle Cloud | Sistema completo en línea |
@@ -354,14 +360,14 @@ Flujo con IA (fase 11), sobre lo anterior:
 
 ## 9. Reparto del equipo (4 integrantes)
 
-Cada bloque se trabaja en su propia rama y se une a `main` con un Pull Request. Los bloques casi no comparten archivos.
+Cada bloque se trabaja en su propia rama `feature/*` y se une a `develop` con un Pull Request (GitFlow, ver `CONTRIBUTING.md`). Los bloques casi no comparten archivos.
 
 | Integrante | Bloque | Rama | Repositorio | Contenido |
 |---|---|---|---|---|
-| Giancarlo | Revisión de documentos: frontend (fase 8) | `extraccion-frontend` | frontend | Pantalla de revisión por categorías, llenado manual y validación |
-| Integrante 2 | Revisión de documentos: backend (fase 8) | `extraccion-backend` | backend | Migración V13, API de llenado y validación, paso de los datos a la historia, auditoría |
-| Integrante 3 | Tratamiento estructurado (fase 9) | `tratamiento` | backend y frontend | Migración V14, órdenes, interconsultas, descanso médico imprimible y cita de control |
-| Integrante 4 | Despliegue (fase 10) | `despliegue` | backend y frontend | Dockerfile, `AlmacenamientoR2`, configuración de Vercel, Render y Neon, guía de despliegue |
+| Giancarlo | Revisión de documentos: frontend (fase 8) | `feature/revision-documentos-frontend` | frontend | Pantalla de revisión por categorías, llenado manual y validación |
+| SmooDZero | Revisión de documentos: backend (fase 8) | `feature/revision-documentos-backend` | backend | Migración V13, API de llenado y validación, paso de los datos a la historia, auditoría |
+| Magdyrams | Tratamiento estructurado (fase 9) | `feature/tratamiento-backend`, `feature/tratamiento-frontend` | backend y frontend | Migración V14, órdenes, interconsultas, descanso médico imprimible y cita de control |
+| Annd-Aiz | Despliegue (fase 10) | `feature/preparacion-nube` (unida), `feature/despliegue` (pendiente) | backend y frontend | Dockerfile, `AlmacenamientoBaseDatos`, configuración de Vercel, Render y Neon, integración continua, manual de despliegue |
 
 - **Orden:** el backend de la fase 8 va primero, porque la pantalla usa su API. Las fases 9 y 10 pueden ir en paralelo.
 - **Migraciones reservadas:** V13 para la fase 8 y V14 para la fase 9, para que dos ramas no creen el mismo número.

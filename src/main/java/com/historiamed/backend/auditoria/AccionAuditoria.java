@@ -21,6 +21,8 @@ public enum AccionAuditoria {
 	/** Firma de una atención médica: desde ese momento es inmutable. */
 	CERRAR,
 	/** Visualización o descarga del contenido de un documento clínico. */
-	DESCARGAR
+	DESCARGAR,
+	/** Un médico valida (o rechaza) los datos de un documento: los aceptados pasan a la historia clínica. */
+	VALIDAR
 
 }

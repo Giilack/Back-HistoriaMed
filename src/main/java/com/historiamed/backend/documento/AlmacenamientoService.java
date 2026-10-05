@@ -3,8 +3,9 @@ package com.historiamed.backend.documento;
 import org.springframework.core.io.Resource;
 
 /**
- * Dónde se guardan los archivos. Hoy: disco local ({@link AlmacenamientoLocal}). Para la nube se agregará otra
- * implementación (Cloudflare R2, compatible con S3) sin cambiar el resto del sistema (plan.md, sección 6.2).
+ * Dónde se guardan los archivos. Se elige con {@code historiamed.almacenamiento.tipo}: {@code local} (disco,
+ * {@link AlmacenamientoLocal}) o {@code bd} (PostgreSQL, {@link AlmacenamientoBaseDatos}, para la nube). Cambiar
+ * de uno a otro, o agregar otro como Cloudflare R2, no toca el resto del sistema (plan.md, sección 6.2).
  */
 public interface AlmacenamientoService {
 
