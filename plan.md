@@ -347,7 +347,7 @@ Flujo con IA (fase 11), sobre lo anterior:
 | 7b | Rediseño visual del frontend, contraseñas con Argon2id y cifrado de los datos del paciente | ✅ |
 | 8 | **Revisión de documentos con llenado manual:** tablas de extracción, pantalla por categorías, validación del médico y paso a la historia (5.5) | Un documento subido se convierte en datos validados, sin IA — ✅ |
 | 9 | **Tratamiento estructurado:** órdenes de exámenes, interconsultas, descanso médico y cita de control (5.4) | El médico indica receta y tratamiento como datos — ✅ |
-| 10 | **Despliegue sin IA:** Dockerfile, documentos en la base, Vercel + Render + Neon (6.3) | Sistema en línea con datos ficticios — preparación unida a `develop` (documentos en la base, integración continua); el despliegue está en la rama `feature/despliegue`, pendiente de revisión. **Aún no desplegado.** |
+| 10 | **Despliegue sin IA:** Dockerfile, documentos en la base, Vercel + Render + Neon (6.3) | Sistema en línea con datos ficticios — rama `feature/despliegue` (Annd-Aiz) revisada y unida en la versión `v1.0.0`; Giancarlo crea los servicios y despliega desde `main` |
 | 11 | **IA de extracción:** servicio FastAPI + PyMuPDF/Docling + Ollama, que llena la pantalla de la fase 8 | Documentos a datos propuestos |
 | 12 | **Chatbot clínico** con RAG (5.6) | El médico consulta la historia en lenguaje natural |
 | 13 | **Despliegue con IA** en Oracle Cloud | Sistema completo en línea |
@@ -364,8 +364,8 @@ Cada bloque se trabaja en su propia rama `feature/*` y se une a `develop` con un
 
 | Integrante | Bloque | Rama | Repositorio | Contenido |
 |---|---|---|---|---|
-| Giancarlo | Revisión de documentos: frontend (fase 8) | `feature/revision-documentos-frontend` | frontend | Pantalla de revisión por categorías, llenado manual y validación |
-| SmooDZero | Revisión de documentos: backend (fase 8) | `feature/revision-documentos-backend` | backend | Migración V13, API de llenado y validación, paso de los datos a la historia, auditoría |
+| Giancarlo | Coordinación y despliegue | `develop`, `main` | backend y frontend | Revisión y unión de los Pull Requests, versiones (`release/*`) y despliegue en la nube |
+| SmooDZero | Revisión de documentos (fase 8) | `feature/revision-documentos-backend`, `feature/revision-documentos-frontend` | backend y frontend | Migración V13, API de llenado y validación, paso de los datos a la historia, auditoría |
 | Magdyrams | Tratamiento estructurado (fase 9) | `feature/tratamiento-backend`, `feature/tratamiento-frontend` | backend y frontend | Migración V14, órdenes, interconsultas, descanso médico imprimible y cita de control |
 | Annd-Aiz | Despliegue (fase 10) | `feature/preparacion-nube` (unida), `feature/despliegue` (pendiente) | backend y frontend | Dockerfile, `AlmacenamientoBaseDatos`, configuración de Vercel, Render y Neon, integración continua, manual de despliegue |
 
