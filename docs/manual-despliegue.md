@@ -180,6 +180,26 @@ pg_dump "postgresql://USUARIO:CONTRASEÑA@SERVIDOR/BASE?sslmode=require" -Fc -f 
 El volcado incluye los documentos (tabla `archivos`). Para restaurar: `pg_restore -d "DIRECCION" historiamed.dump`.
 El respaldo solo sirve junto con la `CIFRADO_CLAVE` con la que se cifraron los datos.
 
+### 11.1 Respaldo automático diario
+
+El flujo `.github/workflows/respaldo-diario.yml` respalda la base de Neon todos los días a las 2:00 a. m. (hora de Lima),
+cifra el archivo con GPG (AES-256) y lo guarda 30 días como artefacto en GitHub → **Actions → Respaldo diario de la
+base de datos**. Se activa agregando dos secretos en GitHub → **Settings → Secrets and variables → Actions**:
+
+| Secreto | Valor |
+|---|---|
+| `RESPALDO_DB_URL` | `postgresql://historiamed_owner:CONTRASEÑA@SERVIDOR/historiamed?sslmode=require` (el propietario) |
+| `RESPALDO_CLAVE` | Una frase larga (`openssl rand -base64 32`). Guardar una copia: sin ella el respaldo no se puede abrir |
+
+Sin los secretos el flujo termina sin hacer nada. Para probarlo: **Run workflow**.
+
+Restaurar un respaldo descargado (en Git Bash, con PostgreSQL 17 o superior):
+
+```bash
+gpg -d historiamed_AAAA-MM-DD.dump.gpg > historiamed.dump      # pide RESPALDO_CLAVE
+pg_restore --no-owner -d "postgresql://USUARIO:CONTRASEÑA@SERVIDOR/BASE_NUEVA?sslmode=require" historiamed.dump
+```
+
 ## 12. Problemas frecuentes
 
 | Síntoma | Causa probable | Solución |
