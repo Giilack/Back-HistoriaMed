@@ -106,6 +106,19 @@ Las migraciones siguen corriendo con el propietario.
    - `DB_USERNAME` = `historiamed_app` y `DB_PASSWORD` = la contraseña del paso 2.
 5. Guardar con **Save, rebuild and deploy** y comprobar `/actuator/health`.
 
+## 5.2 CAPTCHA en el inicio de sesión (Cloudflare Turnstile)
+
+Tras 3 intentos fallidos con el mismo usuario, el login pide resolver un CAPTCHA (a los 5 se bloquea la cuenta 15
+minutos). Se usa Cloudflare Turnstile: gratuito, sin tarjeta y sin acertijos de imágenes.
+
+1. En https://dash.cloudflare.com (crear cuenta gratis) → **Turnstile → Add widget**.
+2. Nombre `HistoriaMed`, dominio: la dirección de Vercel sin `https://` (y `localhost` para probar en local);
+   modo **Managed**. Cloudflare entrega una **Site Key** (pública) y una **Secret Key** (secreta).
+3. Render → **Environment**: `TURNSTILE_SECRET` = la Secret Key → **Save, rebuild and deploy**.
+4. Vercel → **Settings → Environment Variables**: `VITE_TURNSTILE_SITE_KEY` = la Site Key → volver a desplegar.
+
+Las dos claves van juntas: con una sola, el CAPTCHA no funciona. Sin ellas el sistema funciona igual, sin CAPTCHA.
+
 ## 6. Frontend en Vercel
 
 1. En `frontend/vercel.json`, cambiar `https://historiamed-backend.onrender.com` por la dirección real del paso 5

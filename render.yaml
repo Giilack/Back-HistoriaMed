@@ -32,6 +32,9 @@ services:
       # Dirección del frontend en Vercel, por ejemplo https://historiamed.vercel.app
       - key: CORS_ORIGENES
         sync: false
+      # Clave secreta de Cloudflare Turnstile: CAPTCHA tras 3 intentos fallidos (vacía = sin CAPTCHA)
+      - key: TURNSTILE_SECRET
+        sync: false
       - key: ALMACENAMIENTO_TIPO
         value: bd
       - key: COOKIE_SECURE

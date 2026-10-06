@@ -32,6 +32,7 @@ La lógica de negocio completa está en `plan.md` (en la carpeta raíz del proye
 | `ALMACENAMIENTO_TIPO` | `local` (por defecto, carpeta `uploads/`) o `bd` (documentos en PostgreSQL; para la nube) |
 | `FORWARD_HEADERS` | `framework` detrás de un proxy (nube), para registrar la IP real del usuario. Por defecto `none` |
 | `PORT` | Puerto del servidor. Por defecto 8080 |
+| `TURNSTILE_SECRET` | Clave secreta de Cloudflare Turnstile. Con ella, tras 3 intentos fallidos con el mismo usuario el login exige resolver un CAPTCHA. Vacía = sin CAPTCHA |
 
 ## Ejecutar
 
