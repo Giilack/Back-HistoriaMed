@@ -1,0 +1,54 @@
+# Respaldo diario de la base de datos de la nube (Neon), cifrado, guardado 30 días como artefacto de GitHub Actions.
+# Corre a las 2:00 a. m. de Lima (7:00 UTC) desde la rama main, y se puede ejecutar a mano con "Run workflow".
+#
+# Necesita dos secretos del repositorio (Settings → Secrets and variables → Actions):
+#   RESPALDO_DB_URL  postgresql://historiamed_owner:CONTRASEÑA@SERVIDOR/historiamed?sslmode=require
+#                    (el propietario: el usuario de la aplicación no puede leer el historial de migraciones)
+#   RESPALDO_CLAVE   frase larga para cifrar el archivo (openssl rand -base64 32)
+# Sin ellos, el flujo termina sin hacer nada. El repositorio es público: por eso el archivo se cifra siempre.
+# Restaurar: ver docs/manual-despliegue.md, sección 11.
+name: Respaldo diario de la base de datos
+
+on:
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+jobs:
+  respaldo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      URL_BD: ${{ secrets.RESPALDO_DB_URL }}
+      CLAVE: ${{ secrets.RESPALDO_CLAVE }}
+    steps:
+      - name: Comprobar la configuración
+        id: config
+        run: |
+          if [ -z "$URL_BD" ] || [ -z "$CLAVE" ]; then
+            echo "::notice::Respaldo omitido: faltan los secretos RESPALDO_DB_URL y RESPALDO_CLAVE"
+            echo "listo=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "listo=si" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Volcar la base y cifrar el archivo
+        if: steps.config.outputs.listo == 'si'
+        run: |
+          fecha=$(date -u +%Y-%m-%d)
+          # pg_dump de la misma versión que Neon (PostgreSQL 17), sin instalar nada en el equipo de GitHub
+          docker run --rm -e URL_BD postgres:17 sh -c 'pg_dump "$URL_BD" -Fc' > respaldo.dump
+          test -s respaldo.dump
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$CLAVE" \
+              --symmetric --cipher-algo AES256 -o "historiamed_${fecha}.dump.gpg" respaldo.dump
+          rm respaldo.dump
+          ls -lh historiamed_*.dump.gpg
+
+      - name: Guardar el respaldo (30 días)
+        if: steps.config.outputs.listo == 'si'
+        uses: actions/upload-artifact@v4
+        with:
+          name: respaldo-historiamed
+          path: historiamed_*.dump.gpg
+          retention-days: 30
+          if-no-files-found: error
