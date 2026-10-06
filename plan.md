@@ -261,7 +261,7 @@ Flujo con IA (fase 11), sobre lo anterior:
 ### 5.8 Usuarios y seguridad
 - Contraseñas con hash Argon2id (no se cifran: un hash no se puede revertir). Documento, teléfonos y dirección del paciente cifrados con AES-256-GCM. Al primer ingreso, el usuario debe cambiar la contraseña temporal.
 - Bloqueo temporal tras 5 intentos fallidos.
-- JWT de acceso de corta duración (15 min) + refresh token.
+- JWT de acceso de corta duración (30 min) + refresh token de 7 días que lo renueva solo mientras el usuario usa el sistema.
 - Los usuarios se **desactivan**, no se borran (sus atenciones siguen firmadas por ellos).
 - Un ADMIN no puede desactivarse a sí mismo ni quitar el último ADMIN.
 
