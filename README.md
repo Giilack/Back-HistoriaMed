@@ -51,7 +51,7 @@ La API queda en `http://localhost:8080`. Estado: `http://localhost:8080/actuator
 Pruebas unitarias de las reglas de negocio (autenticación, pacientes, citas, triaje, alergias, atención, documentos, cifrado y revisión de documentos).
 La prueba de contexto con Testcontainers se omite automáticamente si no hay Docker.
 
-## Datos de demostración (para la sustentación)
+## Datos de demostración 
 
 Datos **100 % ficticios** (principio P5: nunca datos reales). Se cargan **solo** si `DEMO=true` **y** la base no tiene
 pacientes, para no mezclarlos nunca con datos reales. Se recomienda una base aparte:
