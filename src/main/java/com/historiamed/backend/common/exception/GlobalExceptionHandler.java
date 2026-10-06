@@ -19,6 +19,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
+import com.historiamed.backend.auth.CaptchaRequeridoException;
 import com.historiamed.backend.auth.CredencialesInvalidasException;
 import com.historiamed.backend.common.dto.ErrorResponse;
 
@@ -47,6 +48,11 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(AccesoProhibidoException.class)
 	ResponseEntity<ErrorResponse> accesoProhibido(AccesoProhibidoException ex, HttpServletRequest req) {
 		return respuesta(HttpStatus.FORBIDDEN, "ACCESO_DENEGADO", ex.getMessage(), req);
+	}
+
+	@ExceptionHandler(CaptchaRequeridoException.class)
+	ResponseEntity<ErrorResponse> captcha(CaptchaRequeridoException ex, HttpServletRequest req) {
+		return respuesta(HttpStatus.UNAUTHORIZED, "CAPTCHA_REQUERIDO", ex.getMessage(), req);
 	}
 
 	@ExceptionHandler(CredencialesInvalidasException.class)
