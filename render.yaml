@@ -11,9 +11,14 @@ services:
       # Base de datos (Neon). DB_URL con el formato jdbc:postgresql://HOST/BASE?sslmode=require
       - key: DB_URL
         sync: false
+      # Usuario de la aplicación (mínimo privilegio: historiamed_app) y propietario solo para las migraciones
       - key: DB_USERNAME
         sync: false
       - key: DB_PASSWORD
+        sync: false
+      - key: DB_MIGRACION_USERNAME
+        sync: false
+      - key: DB_MIGRACION_PASSWORD
         sync: false
       # Secretos propios de producción: distintos de los de cada computadora de desarrollo
       - key: JWT_SECRET

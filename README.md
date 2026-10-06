@@ -21,7 +21,8 @@ La lógica de negocio completa está en `plan.md` (en la carpeta raíz del proye
 | Variable | Descripción |
 |---|---|
 | `DB_URL` | `jdbc:postgresql://localhost:5432/Db-Med` |
-| `DB_USERNAME` / `DB_PASSWORD` | Credenciales de PostgreSQL |
+| `DB_USERNAME` / `DB_PASSWORD` | Credenciales de PostgreSQL con que trabaja la aplicación (en la nube, `historiamed_app`: mínimo privilegio) |
+| `DB_MIGRACION_USERNAME` / `DB_MIGRACION_PASSWORD` | Opcional: usuario propietario solo para las migraciones (Flyway). Sin ellas se usa `DB_USERNAME` |
 | `JWT_SECRET` | Secreto aleatorio de al menos 32 caracteres (`openssl rand -base64 48`) |
 | `CIFRADO_CLAVE` | Clave de cifrado de los datos sensibles del paciente: 32 bytes en Base64 (`openssl rand -base64 32`). **Guarde una copia**: si se pierde, esos datos no se pueden descifrar |
 | `ADMIN_INICIAL_USERNAME` / `ADMIN_INICIAL_PASSWORD` | Primer ADMIN; se crea solo si no existe ninguno y debe cambiar su contraseña al ingresar |

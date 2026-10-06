@@ -260,6 +260,7 @@ Flujo con IA (fase 11), sobre lo anterior:
 
 ### 5.8 Usuarios y seguridad
 - Contraseñas con hash Argon2id (no se cifran: un hash no se puede revertir). Documento, teléfonos y dirección del paciente cifrados con AES-256-GCM. Al primer ingreso, el usuario debe cambiar la contraseña temporal.
+- **Base de datos con mínimo privilegio:** la aplicación se conecta con `historiamed_app` (leer, crear y actualizar; sin borrar tablas, cambiar su estructura ni desactivar triggers). Las migraciones usan el propietario (V16).
 - Bloqueo temporal tras 5 intentos fallidos.
 - JWT de acceso de corta duración (30 min) + refresh token de 7 días que lo renueva solo mientras el usuario usa el sistema.
 - Los usuarios se **desactivan**, no se borran (sus atenciones siguen firmadas por ellos).
