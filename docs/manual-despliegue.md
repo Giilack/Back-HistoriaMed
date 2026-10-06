@@ -71,7 +71,8 @@ dirección de los pacientes no se pueden descifrar.** `JWT_SECRET` lo genera Ren
    | Variable | Valor |
    |---|---|
    | `DB_URL` | La dirección JDBC del paso 3 |
-   | `DB_USERNAME` / `DB_PASSWORD` | Usuario y contraseña de Neon |
+   | `DB_USERNAME` / `DB_PASSWORD` | Usuario y contraseña de Neon (en el primer despliegue, el propietario; ver 5.1) |
+   | `DB_MIGRACION_USERNAME` / `DB_MIGRACION_PASSWORD` | Propietario de Neon (`*_owner`), solo para las migraciones |
    | `CIFRADO_CLAVE` | La generada en el paso 4 |
    | `ADMIN_INICIAL_PASSWORD` | La generada en el paso 4 |
    | `CORS_ORIGENES` | Por ahora `https://pendiente.vercel.app`; se corrige en el paso 7 |
@@ -90,6 +91,20 @@ dirección de los pacientes no se pueden descifrar.** `JWT_SECRET` lo genera Ren
 3. Esperar la primera construcción (varios minutos). Anotar la dirección del servicio, por ejemplo
    `https://historiamed-backend.onrender.com`.
 4. Comprobar: `https://DIRECCION-DE-RENDER/actuator/health` debe responder `{"status":"UP"}` (incluye la base de datos).
+
+## 5.1 Usuario de la aplicación con mínimo privilegio
+
+La migración V16 crea el rol `historiamed_app`, que solo puede leer, crear y actualizar datos (sin `DROP`,
+`TRUNCATE`, cambios de estructura ni desactivar triggers; `DELETE` solo en las tablas de detalle de un borrador).
+Las migraciones siguen corriendo con el propietario.
+
+1. Desplegar la versión con la V16 (el rol se crea sin poder iniciar sesión).
+2. Generar una contraseña: `openssl rand -base64 24`.
+3. En Neon → **SQL Editor**: `ALTER ROLE historiamed_app WITH LOGIN PASSWORD 'LA_CONTRASEÑA';`
+4. En Render → **Environment**:
+   - `DB_MIGRACION_USERNAME` / `DB_MIGRACION_PASSWORD`: el propietario (`historiamed_owner` y su contraseña).
+   - `DB_USERNAME` = `historiamed_app` y `DB_PASSWORD` = la contraseña del paso 2.
+5. Guardar con **Save, rebuild and deploy** y comprobar `/actuator/health`.
 
 ## 6. Frontend en Vercel
 
