@@ -110,7 +110,7 @@ de validación están en [`docs/manual-despliegue.md`](docs/manual-despliegue.md
 
 - Contraseñas con hash Argon2id (los hashes BCrypt anteriores se actualizan al iniciar sesión); bloqueo de 15 minutos tras 5 intentos fallidos; contraseña temporal obligatoria de cambiar.
 - Documento, teléfonos y dirección del paciente cifrados en la base con AES-256-GCM (`CifradoDatos`); la búsqueda por documento usa una huella HMAC.
-- Access token JWT de 15 minutos + refresh token rotativo con detección de reutilización.
+- Access token JWT de 30 minutos + refresh token rotativo con detección de reutilización.
 - Permisos por rol en cada endpoint: el ADMIN no accede a datos clínicos; ADMISION no ve contenido clínico.
 - Auditoría inmutable (la base de datos rechaza modificarla) de accesos, cambios y descargas.
 - Atenciones cerradas inmutables también en la base de datos (triggers).
