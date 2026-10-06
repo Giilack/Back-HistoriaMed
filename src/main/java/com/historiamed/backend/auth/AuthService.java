@@ -40,17 +40,24 @@ public class AuthService {
 
 	private final HistoriaMedProperties properties;
 
+	private final IntentosLogin intentos;
+
+	private final VerificadorCaptcha captcha;
+
 	/** Hash de relleno: si el usuario no existe se compara igual, para no revelar su existencia por el tiempo. */
 	private final String hashFicticio;
 
 	public AuthService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder, TokenService tokenService,
-			RefreshTokenService refreshTokenService, AuditoriaService auditoria, HistoriaMedProperties properties) {
+			RefreshTokenService refreshTokenService, AuditoriaService auditoria, HistoriaMedProperties properties,
+			IntentosLogin intentos, VerificadorCaptcha captcha) {
 		this.usuarioRepository = usuarioRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.tokenService = tokenService;
 		this.refreshTokenService = refreshTokenService;
 		this.auditoria = auditoria;
 		this.properties = properties;
+		this.intentos = intentos;
+		this.captcha = captcha;
 		this.hashFicticio = passwordEncoder.encode("password-ficticia-para-tiempo-constante");
 	}
 
@@ -61,17 +68,21 @@ public class AuthService {
 	@Transactional(noRollbackFor = CredencialesInvalidasException.class)
 	public Sesion login(LoginRequest req) {
 		Instant ahora = Instant.now();
+		if (exigeCaptcha(req.username(), ahora) && !captcha.verificar(req.captchaToken())) {
+			auditarFallo(null, req.username(), null, AccionAuditoria.LOGIN_FALLIDO, "CAPTCHA no resuelto");
+			throw new CaptchaRequeridoException("Por seguridad, confirme que no es un robot");
+		}
 		Usuario u = usuarioRepository.findByUsername(req.username().trim()).orElse(null);
 
 		if (u == null) {
 			passwordEncoder.matches(req.password(), hashFicticio);
 			auditarFallo(null, req.username(), null, AccionAuditoria.LOGIN_FALLIDO, "Credenciales inválidas");
-			throw new CredencialesInvalidasException();
+			throw fallo(req.username(), ahora);
 		}
 		if (!u.isActivo()) {
 			auditarFallo(u.getId(), u.getUsername(), u.getRol().name(), AccionAuditoria.LOGIN_FALLIDO,
 					"Usuario desactivado");
-			throw new CredencialesInvalidasException();
+			throw fallo(req.username(), ahora);
 		}
 		if (u.estaBloqueado(ahora)) {
 			auditarFallo(u.getId(), u.getUsername(), u.getRol().name(), AccionAuditoria.LOGIN_FALLIDO,
@@ -81,7 +92,7 @@ public class AuthService {
 		}
 		if (!passwordEncoder.matches(req.password(), u.getPasswordHash())) {
 			registrarIntentoFallido(u, ahora);
-			throw new CredencialesInvalidasException();
+			throw fallo(req.username(), ahora);
 		}
 
 		// Hash antiguo (BCrypt): se rehace con Argon2id aprovechando que ahora se conoce la contraseña
@@ -91,6 +102,7 @@ public class AuthService {
 		u.setIntentosFallidos(0);
 		u.setBloqueadoHasta(null);
 		u.setUltimoAcceso(ahora);
+		intentos.limpiar(req.username());
 		auditoria.registrarComo(u.getId(), u.getUsername(), u.getRol().name(), AccionAuditoria.LOGIN_EXITOSO, RECURSO,
 				null, null);
 		return emitirSesion(u);
@@ -142,6 +154,23 @@ public class AuthService {
 	private Usuario usuarioAutenticado() {
 		Long id = UsuarioActual.requerido().id();
 		return usuarioRepository.findById(id).orElseThrow(() -> new RecursoNoEncontradoException("Usuario", id));
+	}
+
+	/** Con el CAPTCHA activo, se exige después de varios intentos fallidos con el mismo usuario (exista o no). */
+	private boolean exigeCaptcha(String username, Instant ahora) {
+		return captcha.activo() && intentos.fallos(username, ahora) >= captcha.intentosSinCaptcha();
+	}
+
+	/**
+	 * Cuenta el intento fallido y devuelve la excepción a lanzar: el mensaje genérico o, si desde ahora se exige el
+	 * CAPTCHA, el aviso para que el frontend lo muestre. Es igual para usuarios existentes e inexistentes.
+	 */
+	private CredencialesInvalidasException fallo(String username, Instant ahora) {
+		intentos.registrarFallo(username, ahora);
+		if (exigeCaptcha(username, ahora)) {
+			return new CaptchaRequeridoException("Credenciales inválidas. Por seguridad, confirme que no es un robot");
+		}
+		return new CredencialesInvalidasException();
 	}
 
 	private void registrarIntentoFallido(Usuario u, Instant ahora) {

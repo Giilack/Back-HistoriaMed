@@ -52,7 +52,8 @@ class AuthServiceTest {
 	@BeforeEach
 	void setUp() {
 		service = new AuthService(usuarioRepository, passwordEncoder, tokenService, refreshTokenService, auditoria,
-				TestSeguridad.propiedades());
+				TestSeguridad.propiedades(), new IntentosLogin(TestSeguridad.propiedades()),
+				new VerificadorCaptcha(new CaptchaProperties("", 3, "http://localhost")));
 	}
 
 	@Test
