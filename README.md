@@ -16,6 +16,8 @@ La lógica de negocio completa está en `plan.md` (en la carpeta raíz del proye
 ## Configuración
 
 1. Crear la base de datos vacía (por ejemplo, `Db-Med`) en PostgreSQL. **Las tablas las crea Flyway** al arrancar.
+   - **Con Docker** (sin instalar PostgreSQL): `docker compose up -d` levanta la base `Db-Med` en el puerto 5432 con la
+     contraseña de `DB_PASSWORD` del `.env` (ver `docker-compose.yml`).
 2. Copiar `.env.example` como `.env` y completar los valores. `.env` **no se sube a Git**.
 
 | Variable | Descripción |

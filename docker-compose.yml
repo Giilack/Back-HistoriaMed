@@ -1,0 +1,27 @@
+# Base de datos local con Docker, para no instalar PostgreSQL (alternativa a la instalación de Windows).
+# Misma imagen que usan las pruebas de integración (TestcontainersConfiguration): PostgreSQL 17 con pgvector.
+#
+#   docker compose up -d        → base Db-Med en localhost:5432 (usuario postgres)
+#   docker compose down         → la detiene (los datos quedan en el volumen historiamed-datos)
+#
+# La contraseña se toma de DB_PASSWORD en backend/.env, la misma que usa el backend: no se escribe aquí.
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: historiamed-postgres
+    environment:
+      POSTGRES_DB: Db-Med
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD en backend/.env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - historiamed-datos:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d Db-Med"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  historiamed-datos:
