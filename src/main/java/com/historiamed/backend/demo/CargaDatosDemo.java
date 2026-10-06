@@ -8,10 +8,13 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -264,9 +267,12 @@ public class CargaDatosDemo implements ApplicationRunner {
 			if (dia.getDayOfWeek() == DayOfWeek.SUNDAY) {
 				continue;
 			}
-			int citasDelDia = 1 + azar.nextInt(3);
+			// Entre 4 y 10 citas por día, cada una de un paciente distinto (el sistema no limita las atenciones diarias)
+			int citasDelDia = 4 + azar.nextInt(7);
+			List<Integer> delDia = new ArrayList<>(IntStream.range(0, PACIENTES.size()).boxed().toList());
+			Collections.shuffle(delDia, azar);
 			for (int k = 0; k < citasDelDia; k++) {
-				int idx = azar.nextInt(PACIENTES.size());
+				int idx = delDia.get(k);
 				List<Plantilla> opciones = HISTORIA.get(idx);
 				Plantilla plantilla = opciones.get(azar.nextInt(opciones.size()));
 				boolean pediatrico = plantilla == CONTROL_NINO || plantilla == CONTROL_LACTANTE;
