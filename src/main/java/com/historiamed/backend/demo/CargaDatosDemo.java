@@ -14,11 +14,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -43,7 +45,10 @@ import com.historiamed.backend.triaje.EvaluadorTriaje;
  * <li>Todo en una transacción: se carga completo o no se carga nada.</li>
  * </ul>
  *
- * Crea usuarios de cada rol (contraseña {@value #PASSWORD}), 15 pacientes, alergias, unos 60 días de historia
+ * La contraseña de los usuarios de demostración se toma de DEMO_PASSWORD: nunca se escribe en el código, porque el
+ * repositorio es público. Sin ella no se carga nada.
+ *
+ * Crea usuarios de cada rol, 15 pacientes, alergias, unos 60 días de historia
  * (citas atendidas con triaje y atención cerrada, inasistencias y cancelaciones) y el día de hoy con pacientes en
  * cada etapa del flujo. Se escribe con SQL para poder fechar la historia en el pasado; los signos vitales pasan
  * por el mismo {@link EvaluadorTriaje} del sistema, así que alertas y prioridades son coherentes.
@@ -54,9 +59,12 @@ public class CargaDatosDemo implements ApplicationRunner {
 
 	private static final Logger log = LoggerFactory.getLogger(CargaDatosDemo.class);
 
-	static final String PASSWORD = "Demo2026";
+	/** Misma política que el cambio de contraseña: 8 a 72 caracteres, con al menos una letra y un número. */
+	private static final Pattern POLITICA_PASSWORD = Pattern.compile("^(?=.*[A-Za-z])(?=.*\\d).{8,72}$");
 
 	private static final int DIAS_HISTORIA = 60;
+
+	private final String passwordDemo;
 
 	private final JdbcTemplate jdbc;
 
@@ -75,7 +83,9 @@ public class CargaDatosDemo implements ApplicationRunner {
 	private final Map<String, Integer> turnos = new HashMap<>();
 
 	public CargaDatosDemo(JdbcTemplate jdbc, PasswordEncoder passwordEncoder, EvaluadorTriaje evaluador,
-			AuditoriaService auditoria, CifradoDatos cifrado) {
+			AuditoriaService auditoria, CifradoDatos cifrado,
+			@Value("${historiamed.demo.password:}") String passwordDemo) {
+		this.passwordDemo = passwordDemo;
 		this.jdbc = jdbc;
 		this.passwordEncoder = passwordEncoder;
 		this.evaluador = evaluador;
@@ -217,6 +227,11 @@ public class CargaDatosDemo implements ApplicationRunner {
 	@Override
 	@Transactional
 	public void run(ApplicationArguments args) {
+		if (passwordDemo == null || !POLITICA_PASSWORD.matcher(passwordDemo).matches()) {
+			log.warn("Datos de demostración NO cargados: defina DEMO_PASSWORD (8 a 72 caracteres, con al menos una "
+					+ "letra y un número). La contraseña de los usuarios demo no se escribe en el código.");
+			return;
+		}
 		Long pacientes = jdbc.queryForObject("SELECT count(*) FROM pacientes", Long.class);
 		if (pacientes != null && pacientes > 0) {
 			log.warn("Datos de demostración NO cargados: la base ya tiene {} paciente(s). Solo se cargan en una "
@@ -335,8 +350,8 @@ public class CargaDatosDemo implements ApplicationRunner {
 		auditoria.registrarComo(null, "sistema", null, AccionAuditoria.CREAR, "DEMO", null,
 				"Carga de datos de demostración ficticios: " + PACIENTES.size() + " pacientes, " + visitas
 						+ " atenciones históricas");
-		log.info("Datos de demostración cargados: 5 usuarios (contraseña {}), {} pacientes y {} atenciones "
-				+ "históricas. Usuarios: admision.demo, triaje.demo, dr.diaz, dra.torres, dra.ruiz", PASSWORD,
+		log.info("Datos de demostración cargados: 5 usuarios (contraseña: la de DEMO_PASSWORD), {} pacientes y {} "
+				+ "atenciones históricas. Usuarios: admision.demo, triaje.demo, dr.diaz, dra.torres, dra.ruiz",
 				PACIENTES.size(), visitas);
 	}
 
@@ -348,7 +363,7 @@ public class CargaDatosDemo implements ApplicationRunner {
 		jdbc.update("""
 				INSERT INTO usuarios (username, password_hash, nombres, apellidos, dni, rol, cmp, debe_cambiar_password)
 				VALUES (?, ?, ?, ?, ?, ?, ?, FALSE) ON CONFLICT DO NOTHING""", username,
-				passwordEncoder.encode(PASSWORD), nombres, apellidos, dni, rol, cmp);
+				passwordEncoder.encode(passwordDemo), nombres, apellidos, dni, rol, cmp);
 		return jdbc.queryForObject("SELECT id FROM usuarios WHERE username = ?", Long.class, username);
 	}
 
