@@ -304,11 +304,13 @@ class ExtraccionServiceTest {
 		conRevision(e);
 		comoMedico();
 
-		assertThatThrownBy(() -> service.validar(REVISION, Set.of())).isInstanceOf(ReglaNegocioException.class)
+		Set<Long> ninguno = Set.of();
+		assertThatThrownBy(() -> service.validar(REVISION, ninguno)).isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("no tiene datos");
 
 		item(e, 1L, Categoria.OTRO, "Nota", TRIAJE);
-		assertThatThrownBy(() -> service.validar(REVISION, Set.of(99L))).isInstanceOf(ReglaNegocioException.class)
+		var ajenos = Set.of(99L);
+		assertThatThrownBy(() -> service.validar(REVISION, ajenos)).isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("no pertenecen");
 		assertThat(e.getEstado()).isEqualTo(Extraccion.Estado.PENDIENTE_REVISION);
 	}
@@ -334,7 +336,8 @@ class ExtraccionServiceTest {
 		e.setEstado(Extraccion.Estado.VALIDADA);
 		conRevision(e);
 
-		assertThatThrownBy(() -> service.agregarItem(REVISION, laboratorio("Glucosa", "90")))
+		var item = laboratorio("Glucosa", "90");
+		assertThatThrownBy(() -> service.agregarItem(REVISION, item))
 			.isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("cerrada");
 	}

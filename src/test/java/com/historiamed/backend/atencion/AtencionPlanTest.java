@@ -154,22 +154,23 @@ class AtencionPlanTest {
 
 	@Test
 	void elDescansoNoEmpiezaAntesDeLaAtencionNiMuchoDespues() {
-		assertThatThrownBy(
-				() -> service.guardar(ATENCION, request(null, new DescansoRequest(2, hoy.minusDays(1)), null)))
+		var descansoAnterior = request(null, new DescansoRequest(2, hoy.minusDays(1)), null);
+		assertThatThrownBy(() -> service.guardar(ATENCION, descansoAnterior))
 			.isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("antes del día de la atención");
-		assertThatThrownBy(
-				() -> service.guardar(ATENCION, request(null, new DescansoRequest(2, hoy.plusDays(8)), null)))
+		var descansoLejano = request(null, new DescansoRequest(2, hoy.plusDays(8)), null);
+		assertThatThrownBy(() -> service.guardar(ATENCION, descansoLejano))
 			.isInstanceOf(ReglaNegocioException.class);
 	}
 
 	@Test
 	void elControlDebeSerPosteriorALaAtencionYDentroDeUnAnio() {
-		assertThatThrownBy(() -> service.guardar(ATENCION, request(null, null, new ControlRequest(hoy, null))))
+		var controlMismoDia = request(null, null, new ControlRequest(hoy, null));
+		assertThatThrownBy(() -> service.guardar(ATENCION, controlMismoDia))
 			.isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("posterior");
-		assertThatThrownBy(() -> service.guardar(ATENCION,
-				request(null, null, new ControlRequest(hoy.plusYears(1).plusDays(1), null))))
+		var controlLejano = request(null, null, new ControlRequest(hoy.plusYears(1).plusDays(1), null));
+		assertThatThrownBy(() -> service.guardar(ATENCION, controlLejano))
 			.isInstanceOf(ReglaNegocioException.class);
 	}
 
