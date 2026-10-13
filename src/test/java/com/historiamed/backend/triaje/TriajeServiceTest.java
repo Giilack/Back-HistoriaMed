@@ -88,7 +88,8 @@ class TriajeServiceTest {
 	void bajarLaPrioridadSugeridaExigeJustificacion() {
 		when(citaService.obtenerEntidad(50L)).thenReturn(citaEnColaDeTriaje(Sexo.FEMENINO));
 
-		assertThatThrownBy(() -> service.registrar(50L, request(88, Prioridad.NORMAL, null, false)))
+		var solicitud = request(88, Prioridad.NORMAL, null, false);
+		assertThatThrownBy(() -> service.registrar(50L, solicitud))
 			.isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("justificación");
 		verify(repository, never()).save(any());
@@ -112,7 +113,8 @@ class TriajeServiceTest {
 		cita.completarTriaje(Prioridad.NORMAL, Instant.now());
 		when(citaService.obtenerEntidad(50L)).thenReturn(cita);
 
-		assertThatThrownBy(() -> service.registrar(50L, request(98, null, null, false)))
+		var solicitud = request(98, null, null, false);
+		assertThatThrownBy(() -> service.registrar(50L, solicitud))
 			.isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("no está en la cola de triaje");
 	}
@@ -122,7 +124,8 @@ class TriajeServiceTest {
 		when(citaService.obtenerEntidad(50L)).thenReturn(citaEnColaDeTriaje(Sexo.FEMENINO));
 		when(repository.existsByCitaId(50L)).thenReturn(true);
 
-		assertThatThrownBy(() -> service.registrar(50L, request(98, null, null, false)))
+		var solicitud = request(98, null, null, false);
+		assertThatThrownBy(() -> service.registrar(50L, solicitud))
 			.isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("ya tiene un triaje");
 	}
@@ -131,7 +134,8 @@ class TriajeServiceTest {
 	void unHombreNoPuedeMarcarseComoGestante() {
 		when(citaService.obtenerEntidad(50L)).thenReturn(citaEnColaDeTriaje(Sexo.MASCULINO));
 
-		assertThatThrownBy(() -> service.evaluar(50L, request(98, null, null, true)))
+		var solicitud = request(98, null, null, true);
+		assertThatThrownBy(() -> service.evaluar(50L, solicitud))
 			.isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("gestante");
 	}

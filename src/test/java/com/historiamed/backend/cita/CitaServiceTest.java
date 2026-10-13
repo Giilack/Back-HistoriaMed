@@ -74,7 +74,8 @@ class CitaServiceTest {
 	void noSeProgramaEnFechaPasada() {
 		when(pacienteService.obtener(1L)).thenReturn(paciente());
 
-		assertThatThrownBy(() -> service.programar(request(hoy.minusDays(1), LocalTime.of(9, 0))))
+		var solicitud = request(hoy.minusDays(1), LocalTime.of(9, 0));
+		assertThatThrownBy(() -> service.programar(solicitud))
 			.isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("fecha pasada");
 		verify(repository, never()).save(any());
@@ -87,7 +88,8 @@ class CitaServiceTest {
 				anyLong()))
 			.thenReturn(true);
 
-		assertThatThrownBy(() -> service.programar(request(hoy.plusDays(1), LocalTime.of(9, 0))))
+		var solicitud = request(hoy.plusDays(1), LocalTime.of(9, 0));
+		assertThatThrownBy(() -> service.programar(solicitud))
 			.isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("ya tiene una cita");
 	}
@@ -98,7 +100,8 @@ class CitaServiceTest {
 		when(repository.pacienteTieneTurnoActivo(eq(1L), eq(hoy.plusDays(1)), eq(30L), any(), anyLong()))
 			.thenReturn(true);
 
-		assertThatThrownBy(() -> service.programar(request(hoy.plusDays(1), LocalTime.of(9, 0))))
+		var solicitud = request(hoy.plusDays(1), LocalTime.of(9, 0));
+		assertThatThrownBy(() -> service.programar(solicitud))
 			.isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("ya tiene una cita activa");
 	}
@@ -165,7 +168,8 @@ class CitaServiceTest {
 		c.cambiarEstado(EstadoCita.EN_ESPERA_TRIAJE, Instant.now());
 		when(repository.findById(50L)).thenReturn(Optional.of(c));
 
-		assertThatThrownBy(() -> service.reprogramar(50L, request(hoy.plusDays(1), LocalTime.of(10, 0))))
+		var solicitud = request(hoy.plusDays(1), LocalTime.of(10, 0));
+		assertThatThrownBy(() -> service.reprogramar(50L, solicitud))
 			.isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("PROGRAMADA");
 	}

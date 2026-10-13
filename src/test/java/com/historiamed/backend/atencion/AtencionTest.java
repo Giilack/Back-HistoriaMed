@@ -20,10 +20,14 @@ class AtencionTest {
 
 		assertThat(a.estaCerrada()).isTrue();
 		assertThat(a.getCerradaEn()).isNotNull();
-		assertThatThrownBy(() -> a.reemplazarContenido(List.of(), List.of(), List.of()))
+		List<Diagnostico> sinDiagnosticos = List.of();
+		List<ItemReceta> sinReceta = List.of();
+		List<ItemPlan> sinPlan = List.of();
+		assertThatThrownBy(() -> a.reemplazarContenido(sinDiagnosticos, sinReceta, sinPlan))
 			.isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("adenda");
-		assertThatThrownBy(() -> a.cerrar(Instant.now())).isInstanceOf(ReglaNegocioException.class);
+		var ahora = Instant.now();
+		assertThatThrownBy(() -> a.cerrar(ahora)).isInstanceOf(ReglaNegocioException.class);
 
 		Adenda adenda = a.agregarAdenda(new Usuario(), "Se corrige la dosis indicada: 1 tableta cada 12 horas");
 		assertThat(a.getAdendas()).containsExactly(adenda);
@@ -33,7 +37,8 @@ class AtencionTest {
 	void unaAtencionEnCursoNoLlevaAdendas() {
 		Atencion a = new Atencion();
 
-		assertThatThrownBy(() -> a.agregarAdenda(new Usuario(), "texto"))
+		var autor = new Usuario();
+		assertThatThrownBy(() -> a.agregarAdenda(autor, "texto"))
 			.isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("en curso");
 	}
