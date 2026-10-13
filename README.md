@@ -29,6 +29,7 @@ La lógica de negocio completa está en `plan.md` (en la carpeta raíz del proye
 | `CIFRADO_CLAVE` | Clave de cifrado de los datos sensibles del paciente: 32 bytes en Base64 (`openssl rand -base64 32`). **Guarde una copia**: si se pierde, esos datos no se pueden descifrar |
 | `ADMIN_INICIAL_USERNAME` / `ADMIN_INICIAL_PASSWORD` | Primer ADMIN; se crea solo si no existe ninguno y debe cambiar su contraseña al ingresar |
 | `DEMO` | `true` para cargar datos de demostración (ver abajo). Por defecto `false` |
+| `DEMO_PASSWORD` | Contraseña de los usuarios de demostración (8 a 72 caracteres, con letra y número). Sin ella no se cargan |
 | `ALMACENAMIENTO_DIR` | Carpeta de los documentos subidos. Por defecto `uploads/` (ignorada por Git) |
 | `COOKIE_SECURE` | `true` en producción (HTTPS) |
 | `ALMACENAMIENTO_TIPO` | `local` (por defecto, carpeta `uploads/`) o `bd` (documentos en PostgreSQL; para la nube) |
@@ -67,7 +68,7 @@ $env:DB_URL = "jdbc:postgresql://localhost:5432/db_med_demo"; $env:DEMO = "true"
 ```
 
 Crea 15 pacientes, alergias, ~60 días de historia (citas, triajes y atenciones cerradas) y el día de hoy con pacientes
-en cada etapa del flujo. Usuarios de demostración (contraseña **`Demo2026`**):
+en cada etapa del flujo. Usuarios de demostración (contraseña: la definida en **`DEMO_PASSWORD`**, que nunca se escribe en el código):
 
 | Usuario | Rol |
 |---|---|

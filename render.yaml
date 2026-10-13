@@ -44,3 +44,6 @@ services:
       # Poner en "true" solo la primera vez, para cargar los datos ficticios; después volver a "false"
       - key: DEMO
         value: "false"
+      # Contraseña de los usuarios de demostración (solo hace falta con DEMO=true)
+      - key: DEMO_PASSWORD
+        sync: false
