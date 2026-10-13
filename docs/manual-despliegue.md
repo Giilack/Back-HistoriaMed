@@ -87,6 +87,7 @@ dirección de los pacientes no se pueden descifrar.** `JWT_SECRET` lo genera Ren
    | `COOKIE_SECURE` | `true` | La cookie de sesión solo viaja por HTTPS |
    | `FORWARD_HEADERS` | `framework` | La auditoría registra la IP real del usuario, no la del proxy |
    | `DEMO` | `false` | Ver el paso 8 |
+   | `DEMO_PASSWORD` | (secreta) | Contraseña de los usuarios demo; solo hace falta con `DEMO=true` |
 
 3. Esperar la primera construcción (varios minutos). Anotar la dirección del servicio, por ejemplo
    `https://historiamed-backend.onrender.com`.
@@ -138,11 +139,11 @@ Si esta dirección no coincide, el inicio de sesión responde **403**.
 
 Solo con la base vacía (sin pacientes):
 
-1. En Render poner `DEMO=true` y guardar.
+1. En Render poner `DEMO=true` y una contraseña en `DEMO_PASSWORD` (8 a 72 caracteres, con letra y número), y guardar.
 2. Cuando termine de arrancar, en los registros aparece "Datos de demostración cargados".
 3. **Volver a poner `DEMO=false`.**
 
-Usuarios ficticios (contraseña `Demo2026`): `admision.demo`, `triaje.demo`, `dr.diaz`, `dra.torres`, `dra.ruiz`.
+Usuarios ficticios (contraseña: la de `DEMO_PASSWORD`): `admision.demo`, `triaje.demo`, `dr.diaz`, `dra.torres`, `dra.ruiz`.
 El administrador es `admin`, con la contraseña inicial del paso 4; el sistema obliga a cambiarla al entrar.
 
 > La contraseña de demostración está escrita en el código, que es público: cualquiera que conozca la dirección
