@@ -120,7 +120,7 @@ minutos). Se usa Cloudflare Turnstile: gratuito, sin tarjeta y sin acertijos de 
 
 Las dos claves van juntas: con una sola, el CAPTCHA no funciona. Sin ellas el sistema funciona igual, sin CAPTCHA.
 
-## 5.3 Extracción de datos con IA (Gemini)
+## 5.3 Extracción de datos y asistente clínico con IA (Gemini)
 
 El botón «Extraer con IA» de la revisión de documentos llama a la API de Gemini desde el backend. La IA solo propone
 los datos; el médico los valida antes de que pasen a la historia clínica. Desde la versión `v1.2.0`.
@@ -132,6 +132,8 @@ los datos; el médico los valida antes de que pasen a la historia clínica. Desd
    ningún archivo del repositorio ni se comparte por chat.
 3. Opcional: `GEMINI_MODELO` (por defecto `gemini-3.5-flash-lite`, unos 4 s por documento en la capa gratuita).
 4. Comprobar: entrar como médico, abrir la revisión de un documento ficticio y pulsar **Extraer con IA**.
+5. Desde la versión `v1.3.0` la misma clave activa el **asistente clínico**: en la ficha de un paciente, pestaña
+   **Asistente** (solo el médico). No hace falta otra variable.
 
 **Solo datos ficticios:** la capa gratuita de Gemini puede usar lo enviado para mejorar los productos de Google
 (`plan.md`, P6). Sin `GEMINI_API_KEY` la IA queda desactivada y los datos se llenan a mano.

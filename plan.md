@@ -383,7 +383,7 @@ Subida (ADMISION, TRIAJE o MEDICO)
 | 9 | **Tratamiento estructurado:** órdenes de exámenes, interconsultas, descanso médico y cita de control (5.4) | El médico indica receta y tratamiento como datos — ✅ |
 | 10 | **Despliegue sin IA:** Dockerfile, documentos en la base, Vercel + Render + Neon (6.3) | Sistema en línea con datos ficticios — rama `feature/despliegue` (Annd-Aiz) revisada y unida en la versión `v1.0.0`; Giancarlo crea los servicios y despliega desde `main` |
 | 11 | **IA de extracción** con Gemini desde el backend, que llena la pantalla de la fase 8 (5.5) | Documentos a datos propuestos — ✅ (PR #4, versión `v1.2.0`; `gemini-3.5-flash-lite`, unos 4 s por documento) |
-| 12 | **Chatbot clínico** con RAG (5.6) | El médico consulta la historia en lenguaje natural — ✅ (rama `feature/asistente-clinico`) |
+| 12 | **Chatbot clínico** con RAG (5.6) | El médico consulta la historia en lenguaje natural — ✅ (PR #7, versión `v1.3.0`) |
 | 13 | ~~Despliegue con IA en Oracle Cloud~~ | Ya no hace falta: con Gemini basta agregar `GEMINI_API_KEY` en Render |
 
 > Las fases 1 a 5 son el **núcleo**: sin ellas no hay sistema clínico. Las fases 8 a 10 dan valor sin depender de la IA; la IA (fases 11 a 13) es el diferenciador y se conecta sobre lo anterior.
