@@ -70,7 +70,8 @@ class AuthCaptchaTest {
 		when(usuarioRepository.findByUsername("nadie")).thenReturn(Optional.empty());
 
 		for (int i = 0; i < 2; i++) {
-			assertThatThrownBy(() -> service.login(new LoginRequest("nadie", "x")))
+			var credenciales = new LoginRequest("nadie", "x");
+			assertThatThrownBy(() -> service.login(credenciales))
 				.isExactlyInstanceOf(CredencialesInvalidasException.class)
 				.hasMessage("Credenciales inválidas");
 		}
@@ -81,7 +82,8 @@ class AuthCaptchaTest {
 		when(usuarioRepository.findByUsername("nadie")).thenReturn(Optional.empty());
 		fallar("nadie", 2);
 
-		assertThatThrownBy(() -> service.login(new LoginRequest("nadie", "x")))
+		var credenciales = new LoginRequest("nadie", "x");
+		assertThatThrownBy(() -> service.login(credenciales))
 			.isInstanceOf(CaptchaRequeridoException.class)
 			.hasMessageContaining("Credenciales inválidas");
 	}
@@ -96,9 +98,11 @@ class AuthCaptchaTest {
 		fallar("medico1", 2);
 		fallar("nadie", 2);
 
-		assertThatThrownBy(() -> service.login(new LoginRequest("medico1", "incorrecta")))
+		var credenciales = new LoginRequest("medico1", "incorrecta");
+		assertThatThrownBy(() -> service.login(credenciales))
 			.isInstanceOf(CaptchaRequeridoException.class);
-		assertThatThrownBy(() -> service.login(new LoginRequest("nadie", "incorrecta")))
+		var credenciales2 = new LoginRequest("nadie", "incorrecta");
+		assertThatThrownBy(() -> service.login(credenciales2))
 			.isInstanceOf(CaptchaRequeridoException.class);
 	}
 
@@ -111,7 +115,8 @@ class AuthCaptchaTest {
 		intentos.registrarFallo("medico1", Instant.now());
 		when(captcha.verificar(null)).thenReturn(false);
 
-		assertThatThrownBy(() -> service.login(new LoginRequest("medico1", "correcta")))
+		var credenciales = new LoginRequest("medico1", "correcta");
+		assertThatThrownBy(() -> service.login(credenciales))
 			.isInstanceOf(CaptchaRequeridoException.class)
 			.hasMessage("Por seguridad, confirme que no es un robot");
 		verify(passwordEncoder, never()).matches("correcta", "hash");
@@ -156,7 +161,8 @@ class AuthCaptchaTest {
 		when(usuarioRepository.findByUsername("nadie")).thenReturn(Optional.empty());
 		fallar("nadie", 5);
 
-		assertThatThrownBy(() -> service.login(new LoginRequest("nadie", "x")))
+		var credenciales = new LoginRequest("nadie", "x");
+		assertThatThrownBy(() -> service.login(credenciales))
 			.isExactlyInstanceOf(CredencialesInvalidasException.class);
 		verify(captcha, never()).verificar(any());
 		verify(auditoria, never()).registrarComo(any(), anyString(), any(), any(), anyString(), any(),

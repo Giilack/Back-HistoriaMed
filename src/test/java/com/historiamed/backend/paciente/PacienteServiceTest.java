@@ -74,7 +74,8 @@ class PacienteServiceTest {
 		when(repository.findByTipoDocumentoAndNumeroDocumentoHuella(TipoDocumento.DNI, cifrado.huella("12345678")))
 			.thenReturn(Optional.of(existente));
 
-		assertThatThrownBy(() -> service.registrar(request(TipoDocumento.DNI, "12345678", null)))
+		var solicitud = request(TipoDocumento.DNI, "12345678", null);
+		assertThatThrownBy(() -> service.registrar(solicitud))
 			.isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("HC-000005");
 		verify(repository, never()).save(any());
@@ -82,7 +83,8 @@ class PacienteServiceTest {
 
 	@Test
 	void dniDebeTenerOchoDigitos() {
-		assertThatThrownBy(() -> service.registrar(request(TipoDocumento.DNI, "1234", null)))
+		var solicitud = request(TipoDocumento.DNI, "1234", null);
+		assertThatThrownBy(() -> service.registrar(solicitud))
 			.isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("8 dígitos");
 	}
@@ -121,7 +123,8 @@ class PacienteServiceTest {
 	void seguroPrivadoExigeAseguradora() {
 		var privado = new FinanciamientoRequest(TipoFinanciamiento.PRIVADO, "P-1", null, null);
 
-		assertThatThrownBy(() -> service.registrar(request(TipoDocumento.DNI, "12345678", privado)))
+		var solicitud = request(TipoDocumento.DNI, "12345678", privado);
+		assertThatThrownBy(() -> service.registrar(solicitud))
 			.isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("aseguradora");
 	}
@@ -160,7 +163,8 @@ class PacienteServiceTest {
 	void noSeVerificaSeguroDeUnPacienteParticular() {
 		when(repository.findById(1L)).thenReturn(Optional.of(paciente(1L)));
 
-		assertThatThrownBy(() -> service.verificarSeguro(1L, new VerificacionSeguroRequest(EstadoSeguro.ACTIVO)))
+		var verificacionSeguro = new VerificacionSeguroRequest(EstadoSeguro.ACTIVO);
+		assertThatThrownBy(() -> service.verificarSeguro(1L, verificacionSeguro))
 			.isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("PARTICULAR");
 	}

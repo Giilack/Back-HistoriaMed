@@ -23,6 +23,8 @@ public enum AccionAuditoria {
 	/** Visualización o descarga del contenido de un documento clínico. */
 	DESCARGAR,
 	/** Un médico valida (o rechaza) los datos de un documento: los aceptados pasan a la historia clínica. */
-	VALIDAR
+	VALIDAR,
+	/** Se envió un documento a la IA para que proponga sus datos. */
+	CONSULTA_IA
 
 }

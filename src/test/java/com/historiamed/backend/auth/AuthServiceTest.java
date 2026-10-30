@@ -60,7 +60,8 @@ class AuthServiceTest {
 	void usuarioInexistenteDaElMismoMensajeQueContrasenaIncorrecta() {
 		when(usuarioRepository.findByUsername("nadie")).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> service.login(new LoginRequest("nadie", "x")))
+		var credenciales = new LoginRequest("nadie", "x");
+		assertThatThrownBy(() -> service.login(credenciales))
 			.isInstanceOf(CredencialesInvalidasException.class)
 			.hasMessage("Credenciales inválidas");
 	}
@@ -71,7 +72,8 @@ class AuthServiceTest {
 		u.setActivo(false);
 		when(usuarioRepository.findByUsername("medico1")).thenReturn(Optional.of(u));
 
-		assertThatThrownBy(() -> service.login(new LoginRequest("medico1", "correcta")))
+		var credenciales = new LoginRequest("medico1", "correcta");
+		assertThatThrownBy(() -> service.login(credenciales))
 			.isInstanceOf(CredencialesInvalidasException.class);
 		verify(passwordEncoder, never()).matches("correcta", "hash");
 	}
@@ -83,7 +85,8 @@ class AuthServiceTest {
 		when(usuarioRepository.findByUsername("medico1")).thenReturn(Optional.of(u));
 		when(passwordEncoder.matches("incorrecta", "hash")).thenReturn(false);
 
-		assertThatThrownBy(() -> service.login(new LoginRequest("medico1", "incorrecta")))
+		var credenciales = new LoginRequest("medico1", "incorrecta");
+		assertThatThrownBy(() -> service.login(credenciales))
 			.isInstanceOf(CredencialesInvalidasException.class);
 
 		assertThat(u.estaBloqueado(Instant.now())).isTrue();
@@ -98,7 +101,8 @@ class AuthServiceTest {
 		u.setBloqueadoHasta(Instant.now().plus(Duration.ofMinutes(10)));
 		when(usuarioRepository.findByUsername("medico1")).thenReturn(Optional.of(u));
 
-		assertThatThrownBy(() -> service.login(new LoginRequest("medico1", "correcta")))
+		var credenciales = new LoginRequest("medico1", "correcta");
+		assertThatThrownBy(() -> service.login(credenciales))
 			.isInstanceOf(CredencialesInvalidasException.class)
 			.hasMessageContaining("bloqueada");
 	}

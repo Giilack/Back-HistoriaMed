@@ -45,8 +45,10 @@ class CifradoDatosTest {
 	void laHuellaEsEstableYNoRevelaElValor() {
 		String huella = cifrado.huella("45678912");
 
-		assertThat(huella).hasSize(64).isEqualTo(cifrado.huella("45678912")).doesNotContain("45678912");
-		assertThat(huella).isNotEqualTo(cifrado.huella("45678913"));
+		assertThat(huella).hasSize(64)
+			.isEqualTo(cifrado.huella("45678912"))
+			.doesNotContain("45678912")
+			.isNotEqualTo(cifrado.huella("45678913"));
 	}
 
 	@Test
@@ -65,7 +67,8 @@ class CifradoDatosTest {
 		otra[0] = 1;
 		CifradoDatos ajeno = new CifradoDatos(Base64.getEncoder().encodeToString(otra));
 
-		assertThatThrownBy(() -> ajeno.descifrar(cifrado.cifrar("45678912"))).isInstanceOf(IllegalStateException.class);
+		var textoCifrado = cifrado.cifrar("45678912");
+		assertThatThrownBy(() -> ajeno.descifrar(textoCifrado)).isInstanceOf(IllegalStateException.class);
 		assertThat(ajeno.huella("45678912")).isNotEqualTo(cifrado.huella("45678912"));
 	}
 
