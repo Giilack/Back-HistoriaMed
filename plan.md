@@ -253,7 +253,13 @@ Subida (ADMISION, TRIAJE o MEDICO)
 **Limitación a considerar:** los PDF digitales y los documentos impresos escaneados se extraen bien. **La letra manuscrita**, sobre todo la médica, tiene una precisión baja con herramientas gratuitas. Se procesa como "mejor esfuerzo" y siempre requiere revisión. Conviene mencionarlo como limitación en la sustentación.
 
 ### 5.6 Asistente clínico (chatbot del médico)
-> ⏸️ **Pospuesto.** Diseño de referencia para cuando se active la IA.
+> ✅ **Implementado** (módulo `asistente`, `POST /api/pacientes/{id}/asistente`, solo MEDICO). Con Gemini y datos demo
+> responde en 1 a 3 s. Decisiones de la implementación:
+> - El contexto (RAG) son los registros del paciente con un identificador cada uno (`A1` atenciones, `AL1` alergias,
+>   `AN1` antecedentes, `L1` laboratorio, `T1` triajes); las fuentes que la IA cite y no existan se descartan.
+> - A la IA llegan edad y sexo, nunca nombre, documento, número de historia, teléfono ni dirección (P6).
+> - La auditoría registra cada pregunta (`CONSULTA_IA`) **sin su contenido**: el ADMIN la consulta y no debe ver datos
+>   clínicos. La conversación no se guarda en el servidor.
 
 - **Alcance limitado a un paciente:** el chatbot solo responde sobre la historia del paciente que el médico tiene abierta. No puede consultar otros pacientes.
 - **Técnica RAG:** busca en la historia del paciente (atenciones, diagnósticos, recetas, alergias, documentos validados) y responde **citando la fuente**, por ejemplo: "Atención del 12/03/2026, Dr. X".
@@ -377,7 +383,7 @@ Subida (ADMISION, TRIAJE o MEDICO)
 | 9 | **Tratamiento estructurado:** órdenes de exámenes, interconsultas, descanso médico y cita de control (5.4) | El médico indica receta y tratamiento como datos — ✅ |
 | 10 | **Despliegue sin IA:** Dockerfile, documentos en la base, Vercel + Render + Neon (6.3) | Sistema en línea con datos ficticios — rama `feature/despliegue` (Annd-Aiz) revisada y unida en la versión `v1.0.0`; Giancarlo crea los servicios y despliega desde `main` |
 | 11 | **IA de extracción** con Gemini desde el backend, que llena la pantalla de la fase 8 (5.5) | Documentos a datos propuestos — ✅ (PR #4, versión `v1.2.0`; `gemini-3.5-flash-lite`, unos 4 s por documento) |
-| 12 | **Chatbot clínico** con RAG (5.6) | El médico consulta la historia en lenguaje natural |
+| 12 | **Chatbot clínico** con RAG (5.6) | El médico consulta la historia en lenguaje natural — ✅ (rama `feature/asistente-clinico`) |
 | 13 | ~~Despliegue con IA en Oracle Cloud~~ | Ya no hace falta: con Gemini basta agregar `GEMINI_API_KEY` en Render |
 
 > Las fases 1 a 5 son el **núcleo**: sin ellas no hay sistema clínico. Las fases 8 a 10 dan valor sin depender de la IA; la IA (fases 11 a 13) es el diferenciador y se conecta sobre lo anterior.

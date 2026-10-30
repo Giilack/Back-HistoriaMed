@@ -22,6 +22,7 @@ import org.springframework.web.multipart.support.MissingServletRequestPartExcept
 import com.historiamed.backend.auth.CaptchaRequeridoException;
 import com.historiamed.backend.auth.CredencialesInvalidasException;
 import com.historiamed.backend.common.dto.ErrorResponse;
+import com.historiamed.backend.ia.ErrorIaException;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -63,6 +64,12 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(AccessDeniedException.class)
 	ResponseEntity<ErrorResponse> accesoDenegado(AccessDeniedException ex, HttpServletRequest req) {
 		return respuesta(HttpStatus.FORBIDDEN, "ACCESO_DENEGADO", "No tiene permisos para esta operación", req);
+	}
+
+	/** La IA no está configurada, superó el límite gratuito o no respondió: el resto del sistema sigue funcionando. */
+	@ExceptionHandler(ErrorIaException.class)
+	ResponseEntity<ErrorResponse> errorIa(ErrorIaException ex, HttpServletRequest req) {
+		return respuesta(HttpStatus.SERVICE_UNAVAILABLE, "IA_NO_DISPONIBLE", ex.getMessage(), req);
 	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
