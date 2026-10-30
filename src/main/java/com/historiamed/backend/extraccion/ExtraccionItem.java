@@ -107,6 +107,10 @@ public class ExtraccionItem extends EntidadBase {
 
 	private Integer pagina;
 
+	/** El dato lo propuso la IA (aunque luego alguien lo haya corregido). */
+	@Column(name = "propuesto_por_ia", nullable = false)
+	private boolean propuestoPorIa;
+
 	/** El médico cambió un dato propuesto por otra persona o por la IA. */
 	@Column(nullable = false)
 	private boolean corregido;

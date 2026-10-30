@@ -35,6 +35,8 @@ public class ExtraccionController {
 
 	private final ExtraccionService service;
 
+	private final ExtraccionIaService iaService;
+
 	/** @param aceptados identificadores de los datos que pasan a la historia; los demás quedan descartados */
 	public record ValidacionRequest(@NotNull Set<Long> aceptados) {
 	}
@@ -73,6 +75,18 @@ public class ExtraccionController {
 	@DeleteMapping("/extracciones/{id}/items/{itemId}")
 	public ExtraccionResponse eliminarItem(@PathVariable Long id, @PathVariable Long itemId) {
 		return service.eliminarItem(id, itemId);
+	}
+
+	/** Envía el documento a la IA para que proponga los datos. Responde al instante; la IA trabaja en segundo plano. */
+	@PostMapping("/extracciones/{id}/ia")
+	public ExtraccionResponse solicitarIa(@PathVariable Long id) {
+		return iaService.solicitar(id);
+	}
+
+	/** Estado de la IA, para consultarlo mientras trabaja (sin datos clínicos). */
+	@GetMapping("/extracciones/{id}/ia")
+	public ExtraccionIaService.EstadoIa estadoIa(@PathVariable Long id) {
+		return iaService.estadoIa(id);
 	}
 
 	@PostMapping("/extracciones/{id}/validacion")

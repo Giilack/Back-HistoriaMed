@@ -36,6 +36,8 @@ La lógica de negocio completa está en `plan.md` (en la carpeta raíz del proye
 | `FORWARD_HEADERS` | `framework` detrás de un proxy (nube), para registrar la IP real del usuario. Por defecto `none` |
 | `PORT` | Puerto del servidor. Por defecto 8080 |
 | `TURNSTILE_SECRET` | Clave secreta de Cloudflare Turnstile. Con ella, tras 3 intentos fallidos con el mismo usuario el login exige resolver un CAPTCHA. Vacía = sin CAPTCHA |
+| `GEMINI_API_KEY` | Clave de la API de Gemini (opcional). Sin ella, la extracción con IA queda desactivada. **Solo con datos ficticios** |
+| `GEMINI_MODELO` | Modelo de Gemini. Por defecto `gemini-3.5-flash-lite` (unos 4 s por documento en la capa gratuita) |
 
 ## Ejecutar
 
@@ -95,7 +97,8 @@ Organizado **por módulos de negocio** (`com.historiamed.backend`):
 | `catalogo` | CIE-10 y medicamentos |
 | `atencion` | Atención médica, diagnósticos, receta, alerta de alergias, plan de tratamiento (indicaciones, exámenes, interconsultas, descanso médico, control), cierre y adendas |
 | `documento` | Documentos clínicos y almacenamiento (`AlmacenamientoService`) |
-| `extraccion` | Revisión de los datos de un documento: llenado por categoría, validación del médico y paso a la historia |
+| `extraccion` | Revisión de los datos de un documento: llenado por categoría o con IA, validación del médico y paso a la historia |
+| `ia` | Proveedor de IA (`ProveedorIA`; hoy Gemini) |
 | `antecedente` | Antecedentes del paciente (personales, familiares, quirúrgicos, diagnósticos previos, medicación habitual) |
 | `laboratorio` | Resultados de laboratorio |
 | `reporte` | Indicadores agregados para el ADMIN |
@@ -103,7 +106,7 @@ Organizado **por módulos de negocio** (`com.historiamed.backend`):
 | `demo` | Carga de datos ficticios |
 | `common`, `config` | Errores, seguridad, utilidades y configuración |
 
-Las migraciones de la base de datos están en `src/main/resources/db/migration` (V1 a V15; la V11 es una migración Java en el paquete `paciente`). **Una migración ya aplicada
+Las migraciones de la base de datos están en `src/main/resources/db/migration` (V1 a V16; la V11 es una migración Java en el paquete `paciente`). **Una migración ya aplicada
 no se modifica nunca**: los cambios se hacen con una migración nueva.
 
 ## Despliegue en la nube

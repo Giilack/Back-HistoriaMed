@@ -151,6 +151,20 @@ public class DocumentoService {
 		return DocumentoResponse.de(d);
 	}
 
+	/**
+	 * Contenido del archivo, para procesarlo en el servidor (por ejemplo, la extracción con IA). No se audita aquí:
+	 * quien lo usa registra su propia acción (CONSULTA_IA).
+	 */
+	@Transactional(readOnly = true)
+	public byte[] leerContenido(Documento d) {
+		try {
+			return almacenamiento.obtener(d.getClaveAlmacenamiento()).getContentAsByteArray();
+		}
+		catch (IOException ex) {
+			throw new UncheckedIOException("No se pudo leer el documento", ex);
+		}
+	}
+
 	/** El documento, para otros módulos (por ejemplo, la revisión de sus datos). No se audita como consulta. */
 	@Transactional(readOnly = true)
 	public Documento obtener(Long id) {

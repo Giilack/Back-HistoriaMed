@@ -40,6 +40,13 @@ public class Extraccion extends EntidadBase {
 		IA
 	}
 
+	/** Estado del procesamiento con IA; nulo si no se usó. */
+	public enum EstadoIa {
+		PROCESANDO,
+		COMPLETADA,
+		ERROR
+	}
+
 	public enum Estado {
 		PENDIENTE_REVISION,
 		/** El médico decidió sobre cada dato; los aceptados ya están en la historia clínica. */
@@ -56,8 +63,9 @@ public class Extraccion extends EntidadBase {
 	@JoinColumn(name = "paciente_id", nullable = false, updatable = false)
 	private Paciente paciente;
 
+	/** Pasa a IA cuando la IA propone los datos (fase 11). */
 	@Enumerated(EnumType.STRING)
-	@Column(nullable = false, updatable = false)
+	@Column(nullable = false)
 	private Origen origen = Origen.MANUAL;
 
 	@Enumerated(EnumType.STRING)
@@ -83,12 +91,34 @@ public class Extraccion extends EntidadBase {
 	@Column(name = "revisado_en")
 	private Instant revisadoEn;
 
+	@Enumerated(EnumType.STRING)
+	@Column(name = "ia_estado")
+	private EstadoIa iaEstado;
+
+	/** Modelo con el que se generó la propuesta (por ejemplo gemini-3.5-flash-lite). */
+	@Column(name = "ia_modelo")
+	private String iaModelo;
+
+	/** Motivo del fallo, si la IA no pudo procesar el documento. */
+	@Column(name = "ia_error")
+	private String iaError;
+
+	@Column(name = "ia_solicitada_en")
+	private Instant iaSolicitadaEn;
+
+	@Column(name = "ia_terminada_en")
+	private Instant iaTerminadaEn;
+
 	@OneToMany(mappedBy = "extraccion", cascade = CascadeType.ALL, orphanRemoval = true)
 	@OrderBy("id")
 	private List<ExtraccionItem> items = new ArrayList<>();
 
 	public boolean estaPendiente() {
 		return estado == Estado.PENDIENTE_REVISION;
+	}
+
+	public boolean iaProcesando() {
+		return iaEstado == EstadoIa.PROCESANDO;
 	}
 
 }

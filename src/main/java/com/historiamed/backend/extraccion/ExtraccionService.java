@@ -217,6 +217,9 @@ public class ExtraccionService {
 		if (!e.estaPendiente()) {
 			throw new ReglaNegocioException("La revisión ya fue cerrada y no se puede modificar");
 		}
+		if (e.iaProcesando()) {
+			throw new ReglaNegocioException("La IA está leyendo el documento; espere a que termine");
+		}
 		return e;
 	}
 
@@ -240,9 +243,9 @@ public class ExtraccionService {
 
 	/**
 	 * Copia los datos al ítem según su categoría: exige los campos que esa categoría necesita y deja en blanco los
-	 * que no le corresponden.
+	 * que no le corresponden. También lo usa la extracción con IA, para que sus datos cumplan las mismas reglas.
 	 */
-	private void aplicarDatos(ExtraccionItem item, ItemRequest req) {
+	void aplicarDatos(ExtraccionItem item, ItemRequest req) {
 		Categoria categoria = req.categoria();
 		String descripcion = limpiar(req.descripcion());
 		String detalle = limpiar(req.detalle());
