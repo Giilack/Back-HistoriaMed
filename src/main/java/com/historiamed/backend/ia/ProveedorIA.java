@@ -28,4 +28,15 @@ public interface ProveedorIA {
 	 */
 	String extraerJson(byte[] documento, String mimeType, String instrucciones, Map<String, Object> esquema);
 
+	/**
+	 * Envía solo texto (instrucciones y contenido) y devuelve el texto JSON de la respuesta, que cumple el esquema. Lo
+	 * usa el asistente clínico (plan.md, sección 5.6).
+	 *
+	 * @param instrucciones reglas que debe seguir la IA
+	 * @param contenido datos y pregunta sobre los que responde
+	 * @param esquema estructura que debe tener el JSON de respuesta
+	 * @throws ErrorIaException si el servicio falla, rechaza la solicitud o no responde a tiempo
+	 */
+	String responderJson(String instrucciones, String contenido, Map<String, Object> esquema);
+
 }
