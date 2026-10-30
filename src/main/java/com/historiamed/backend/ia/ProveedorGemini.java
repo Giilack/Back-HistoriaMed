@@ -44,7 +44,7 @@ public class ProveedorGemini implements ProveedorIA {
 	private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
 	public ProveedorGemini(@Value("${historiamed.ia.gemini.api-key:}") String clave,
-			@Value("${historiamed.ia.gemini.modelo:gemini-3.8-flash}") String modelo,
+			@Value("${historiamed.ia.gemini.modelo:gemini-3.5-flash-lite}") String modelo,
 			@Value("${historiamed.ia.gemini.segundos-maximos:120}") long segundosMaximos, JsonMapper json) {
 		this.clave = clave == null ? "" : clave.trim();
 		this.modelo = modelo.trim();

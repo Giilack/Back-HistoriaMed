@@ -95,7 +95,7 @@ public class Extraccion extends EntidadBase {
 	@Column(name = "ia_estado")
 	private EstadoIa iaEstado;
 
-	/** Modelo con el que se generó la propuesta (por ejemplo gemini-3.8-flash). */
+	/** Modelo con el que se generó la propuesta (por ejemplo gemini-3.5-flash-lite). */
 	@Column(name = "ia_modelo")
 	private String iaModelo;
 

@@ -37,7 +37,7 @@ La lógica de negocio completa está en `plan.md` (en la carpeta raíz del proye
 | `PORT` | Puerto del servidor. Por defecto 8080 |
 | `TURNSTILE_SECRET` | Clave secreta de Cloudflare Turnstile. Con ella, tras 3 intentos fallidos con el mismo usuario el login exige resolver un CAPTCHA. Vacía = sin CAPTCHA |
 | `GEMINI_API_KEY` | Clave de la API de Gemini (opcional). Sin ella, la extracción con IA queda desactivada. **Solo con datos ficticios** |
-| `GEMINI_MODELO` | Modelo de Gemini. Por defecto `gemini-3.8-flash` |
+| `GEMINI_MODELO` | Modelo de Gemini. Por defecto `gemini-3.5-flash-lite` (unos 4 s por documento en la capa gratuita) |
 
 ## Ejecutar
 

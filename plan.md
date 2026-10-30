@@ -288,7 +288,7 @@ Subida (ADMISION, TRIAJE o MEDICO)
 | Frontend | React + TypeScript + Vite + Tailwind + shadcn/ui | Gratis |
 | Backend | Java 21 + Spring Boot 4 + Spring Security (JWT) + JPA + Flyway | Gratis |
 | Base de datos | PostgreSQL 18 (+ pgvector para el chatbot) | Gratis |
-| **IA** (fases 11–12) | API de Gemini (`gemini-3.8-flash`, configurable con `GEMINI_MODELO`), llamada desde el backend Java; local con Ollama como alternativa (ver 6.1) | Gratis con límites; solo datos ficticios |
+| **IA** (fases 11–12) | API de Gemini (`gemini-3.5-flash-lite`, configurable con `GEMINI_MODELO`; con `gemini-3.8-flash` la capa gratuita tardó 68 s por documento frente a 4 s, con la misma precisión), llamada desde el backend Java; local con Ollama como alternativa (ver 6.1) | Gratis con límites; solo datos ficticios |
 | Lectura de PDF y OCR (fase 11) | La hace Gemini directamente (PDF digitales, escaneos e imágenes) | Incluido |
 | Embeddings ⏸️ | Modelo multilingüe de Hugging Face (local) | Gratis (pospuesto) |
 | **Archivos** | **Disco local en desarrollo; Cloudflare R2 en la nube** (ver 6.2) | Gratis |

@@ -305,10 +305,11 @@ public class ExtraccionIaService {
 		props.put("rangoReferencia", texto());
 		props.put("tipoAntecedente", opcional(enumerado(new TipoAntecedente[] { TipoAntecedente.PERSONAL,
 				TipoAntecedente.FAMILIAR, TipoAntecedente.QUIRURGICO, TipoAntecedente.OTRO })));
-		props.put("fragmentoOrigen", texto());
+		// Obligatorio: es la evidencia que el médico revisa antes de validar (los modelos ligeros lo omiten si es opcional)
+		props.put("fragmentoOrigen", Map.of("type", "STRING"));
 		props.put("pagina", Map.of("type", "INTEGER", "nullable", true));
 		Map<String, Object> dato = Map.of("type", "OBJECT", "properties", props, "required",
-				List.of("categoria", "descripcion"));
+				List.of("categoria", "descripcion", "fragmentoOrigen"));
 		return Map.of("type", "OBJECT", "properties", Map.of("datos", Map.of("type", "ARRAY", "items", dato)),
 				"required", List.of("datos"));
 	}
