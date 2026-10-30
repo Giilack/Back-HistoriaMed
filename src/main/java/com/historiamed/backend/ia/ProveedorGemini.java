@@ -64,18 +64,27 @@ public class ProveedorGemini implements ProveedorIA {
 
 	@Override
 	public String extraerJson(byte[] documento, String mimeType, String instrucciones, Map<String, Object> esquema) {
+		return generar(List.of(
+				Map.of("inlineData", Map.of("mimeType", mimeType, "data", Base64.getEncoder().encodeToString(documento))),
+				Map.of("text", instrucciones)), esquema);
+	}
+
+	@Override
+	public String responderJson(String instrucciones, String contenido, Map<String, Object> esquema) {
+		return generar(List.of(Map.of("text", instrucciones), Map.of("text", contenido)), esquema);
+	}
+
+	/** Llama a generateContent con las partes indicadas y devuelve el JSON generado. */
+	private String generar(List<Map<String, Object>> partes, Map<String, Object> esquema) {
 		if (!disponible()) {
 			throw new ErrorIaException("La IA no está configurada (falta GEMINI_API_KEY)");
 		}
 		Map<String, Object> cuerpo = Map.of(
-				"contents", List.of(Map.of("parts", List.of(
-						Map.of("inlineData",
-								Map.of("mimeType", mimeType, "data", Base64.getEncoder().encodeToString(documento))),
-						Map.of("text", instrucciones)))),
+				"contents", List.of(Map.of("parts", partes)),
 				"generationConfig", Map.of(
 						"responseMimeType", "application/json",
 						"responseSchema", esquema,
-						// Sin creatividad: se busca copiar datos, no redactar
+						// Sin creatividad: se busca responder con los datos, no inventar
 						"temperature", 0));
 
 		HttpRequest peticion = HttpRequest.newBuilder(URI.create(URL.formatted(modelo)))
@@ -115,7 +124,7 @@ public class ProveedorGemini implements ProveedorIA {
 		}
 		String bloqueo = respuesta.path("promptFeedback").path("blockReason").asString("");
 		if (!bloqueo.isEmpty()) {
-			throw new ErrorIaException("La IA rechazó el documento (" + bloqueo + ")");
+			throw new ErrorIaException("La IA rechazó el contenido (" + bloqueo + ")");
 		}
 		String fin = candidato.path("finishReason").asString("");
 		throw new ErrorIaException("La IA no devolvió datos" + (fin.isEmpty() ? "" : " (" + fin + ")"));
