@@ -376,7 +376,7 @@ Subida (ADMISION, TRIAJE o MEDICO)
 | 8 | **Revisión de documentos con llenado manual:** tablas de extracción, pantalla por categorías, validación del médico y paso a la historia (5.5) | Un documento subido se convierte en datos validados, sin IA — ✅ |
 | 9 | **Tratamiento estructurado:** órdenes de exámenes, interconsultas, descanso médico y cita de control (5.4) | El médico indica receta y tratamiento como datos — ✅ |
 | 10 | **Despliegue sin IA:** Dockerfile, documentos en la base, Vercel + Render + Neon (6.3) | Sistema en línea con datos ficticios — rama `feature/despliegue` (Annd-Aiz) revisada y unida en la versión `v1.0.0`; Giancarlo crea los servicios y despliega desde `main` |
-| 11 | **IA de extracción** con Gemini desde el backend, que llena la pantalla de la fase 8 (5.5) | Documentos a datos propuestos |
+| 11 | **IA de extracción** con Gemini desde el backend, que llena la pantalla de la fase 8 (5.5) | Documentos a datos propuestos — ✅ (PR #4, versión `v1.2.0`; `gemini-3.5-flash-lite`, unos 4 s por documento) |
 | 12 | **Chatbot clínico** con RAG (5.6) | El médico consulta la historia en lenguaje natural |
 | 13 | ~~Despliegue con IA en Oracle Cloud~~ | Ya no hace falta: con Gemini basta agregar `GEMINI_API_KEY` en Render |
 

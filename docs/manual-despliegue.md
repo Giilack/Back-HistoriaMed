@@ -120,6 +120,22 @@ minutos). Se usa Cloudflare Turnstile: gratuito, sin tarjeta y sin acertijos de 
 
 Las dos claves van juntas: con una sola, el CAPTCHA no funciona. Sin ellas el sistema funciona igual, sin CAPTCHA.
 
+## 5.3 Extracción de datos con IA (Gemini)
+
+El botón «Extraer con IA» de la revisión de documentos llama a la API de Gemini desde el backend. La IA solo propone
+los datos; el médico los valida antes de que pasen a la historia clínica. Desde la versión `v1.2.0`.
+
+1. En https://aistudio.google.com/apikey (cuenta de Google) → **Create API key**, en un proyecto sin facturación:
+   así se usa la capa gratuita y no hay cobros (al superar el límite, Gemini rechaza la solicitud hasta el minuto
+   siguiente y la revisión queda en «error», lista para llenarse a mano).
+2. Render → **Environment**: `GEMINI_API_KEY` = la clave → **Save, rebuild and deploy**. La clave no se escribe en
+   ningún archivo del repositorio ni se comparte por chat.
+3. Opcional: `GEMINI_MODELO` (por defecto `gemini-3.5-flash-lite`, unos 4 s por documento en la capa gratuita).
+4. Comprobar: entrar como médico, abrir la revisión de un documento ficticio y pulsar **Extraer con IA**.
+
+**Solo datos ficticios:** la capa gratuita de Gemini puede usar lo enviado para mejorar los productos de Google
+(`plan.md`, P6). Sin `GEMINI_API_KEY` la IA queda desactivada y los datos se llenan a mano.
+
 ## 6. Frontend en Vercel
 
 1. En `frontend/vercel.json`, cambiar `https://historiamed-backend.onrender.com` por la dirección real del paso 5
@@ -242,7 +258,8 @@ todo el tiempo, no para dos.
 
 - Render duerme el servicio tras 15 minutos sin uso.
 - Neon: 0,5 GB en total, contando los documentos (cada uno pesa como máximo 10 MB).
-- La extracción con IA (fases 11 a 13 de `plan.md`) no corre en estos servicios: necesita más memoria.
+- La extracción con IA no ocupa memoria del servidor: el backend llama a la API de Gemini (capa gratuita, con un
+  límite de solicitudes por minuto).
 - Las condiciones de los tres servicios cambian: confirmarlas al crear las cuentas.
 
 ## 14. Estado de verificación de este manual
