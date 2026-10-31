@@ -1,0 +1,393 @@
+{
+  "info": {
+    "name": "HistoriaMed - Interoperabilidad",
+    "description": "Pruebas de la API con los servicios externos. Solo lee datos ficticios.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "INT-A1 Render: el servicio responde",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{api}}/actuator/health/liveness"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Estado UP', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('UP'); });",
+              "pm.test('Responde en menos de 3 s', () => pm.expect(pm.response.responseTime).to.be.below(3000));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "INT-A2 Vercel: el frontend se publica por HTTPS",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{web}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Devuelve la aplicación', () => { pm.response.to.have.status(200); pm.expect(pm.response.text()).to.include('HistoriaMed'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Preparación: sesión de dr.diaz",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{api}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"dr.diaz\", \"password\": \"{{clave}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Inicia sesión', () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set('medico', pm.response.json().accessToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Preparación: sesión de triaje.demo",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{api}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"username\": \"triaje.demo\", \"password\": \"{{clave}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Inicia sesión', () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set('triaje', pm.response.json().accessToken);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "INT-A3 JWT: el token emitido da acceso",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{medico}}"
+          }
+        ],
+        "url": "{{api}}/api/auth/me"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Identifica al usuario', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().rol).to.eql('MEDICO'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "INT-A4 CORS: el frontend autorizado puede llamar",
+      "request": {
+        "method": "OPTIONS",
+        "header": [
+          {
+            "key": "Origin",
+            "value": "{{web}}"
+          },
+          {
+            "key": "Access-Control-Request-Method",
+            "value": "GET"
+          }
+        ],
+        "url": "{{api}}/api/pacientes"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Permite el origen del frontend', () => pm.expect(pm.response.headers.get('Access-Control-Allow-Origin')).to.eql(pm.variables.get('web')));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "INT-A5 CORS: otro sitio no puede llamar",
+      "request": {
+        "method": "OPTIONS",
+        "header": [
+          {
+            "key": "Origin",
+            "value": "https://sitio-ajeno.example"
+          },
+          {
+            "key": "Access-Control-Request-Method",
+            "value": "GET"
+          }
+        ],
+        "url": "{{api}}/api/pacientes"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Rechaza el origen ajeno', () => { pm.response.to.have.status(403); pm.expect(pm.response.headers.has('Access-Control-Allow-Origin')).to.be.false; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "INT-A6 PostgreSQL: búsqueda por DNI cifrado",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{medico}}"
+          }
+        ],
+        "url": "{{api}}/api/pacientes?q=45678912"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Encuentra al paciente ficticio', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().contenido).to.have.lengthOf(1); });",
+              "pm.collectionVariables.set('pacienteId', pm.response.json().contenido[0].id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "INT-A7 Gemini: la IA está configurada",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{medico}}"
+          }
+        ],
+        "url": "{{api}}/api/ia/estado"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Disponible con su modelo', () => { const r = pm.response.json(); pm.expect(r.disponible).to.be.true; pm.expect(r.modelo).to.include('gemini'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "INT-A8 Gemini: el asistente responde citando la fuente",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{medico}}"
+          }
+        ],
+        "url": "{{api}}/api/pacientes/{{pacienteId}}/asistente",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"pregunta\": \"¿Tiene alergias?\", \"historial\": []}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde con fuentes', () => { pm.response.to.have.status(200); const r = pm.response.json(); pm.expect(r.respuesta).to.be.a('string').and.not.empty; pm.expect(r.fuentes).to.be.an('array').and.not.empty; });",
+              "pm.test('Responde en menos de 10 s (KPI-02)', () => pm.expect(pm.response.responseTime).to.be.below(10000));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "INT-A9 Gemini: un dato inexistente no se inventa",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{medico}}"
+          }
+        ],
+        "url": "{{api}}/api/pacientes/{{pacienteId}}/asistente",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"pregunta\": \"¿Cuál es su grupo sanguíneo?\", \"historial\": []}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Dice que no hay registro', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().respuesta.toLowerCase()).to.include('no hay registro'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "INT-A10 Autorización: triaje no usa el asistente",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{triaje}}"
+          }
+        ],
+        "url": "{{api}}/api/pacientes/{{pacienteId}}/asistente",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"pregunta\": \"¿Tiene alergias?\", \"historial\": []}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Devuelve 403', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "INT-A11 Autenticación: sin token no hay datos",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{api}}/api/pacientes"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Devuelve 401', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "INT-A12 Formato: un pedido inválido se rechaza",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{api}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Devuelve 400 con error en JSON', () => { pm.response.to.have.status(400); pm.expect(pm.response.json()).to.have.property('mensaje'); });"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "medico",
+      "value": ""
+    },
+    {
+      "key": "triaje",
+      "value": ""
+    },
+    {
+      "key": "pacienteId",
+      "value": ""
+    }
+  ]
+}
