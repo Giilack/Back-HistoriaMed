@@ -144,8 +144,12 @@ public class ProveedorGemini implements ProveedorIA {
 					+ modelo;
 			case 404 -> "El modelo " + modelo + " no existe o ya no está disponible (revise GEMINI_MODELO)";
 			case 429 -> "Se alcanzó el límite de uso gratuito de la IA. Intente en unos minutos o llene los datos a mano";
-			default -> estado >= 500 ? "El servicio de IA no está disponible en este momento (error " + estado + ")"
-					: "Error " + estado + " del servicio de IA" + (detalle.isEmpty() ? "" : ": " + detalle);
+			default -> {
+				if (estado >= 500) {
+					yield "El servicio de IA no está disponible en este momento (error " + estado + ")";
+				}
+				yield "Error " + estado + " del servicio de IA" + (detalle.isEmpty() ? "" : ": " + detalle);
+			}
 		};
 	}
 
