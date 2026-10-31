@@ -130,7 +130,7 @@ public class AtencionService {
 		return AtencionResponse.de(a);
 	}
 
-	/** Guarda el borrador (reemplaza todo el contenido). Solo el médico que la inició, y solo si está en curso. */
+	/** Guarda el borrador (reemplaza el contenido completo). Solo el médico que la inició, y solo si está en curso. */
 	@Transactional
 	public AtencionResponse guardar(Long id, AtencionRequest req) {
 		Atencion a = obtenerParaEditar(id);
