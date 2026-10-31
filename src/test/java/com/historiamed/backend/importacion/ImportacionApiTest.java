@@ -202,6 +202,24 @@ class ImportacionApiTest {
 	}
 
 	@Test
+	@DisplayName("CP-39 Alergia sin gravedad en el documento: se registra como severa, con el motivo")
+	void alergiaSinGravedad() throws Exception {
+		String dni = String.valueOf(DNI.incrementAndGet());
+		when(ia.extraerJson(any(), anyString(), anyString(), any())).thenReturn("""
+				{"paciente": {"tipoDocumento": "DNI", "numeroDocumento": "%s", "nombres": "Luz", "apellidoPaterno": "Prudente",
+				  "fechaNacimiento": "1970-02-03", "sexo": "FEMENINO"},
+				 "datos": [{"categoria": "ALERGIA", "descripcion": "Sulfas", "tipoAlergia": "MEDICAMENTO",
+				   "fragmentoOrigen": "Alergias: Sulfas"}]}""".formatted(dni));
+		long id = subirYEsperar();
+
+		long paciente = llamar("POST", "/api/importaciones/" + id + "/aprobacion", aprobacion(dni, "Luz", "Prudente", Set.of(0), false), admision)
+			.cuerpo().path("pacienteId").asLong();
+
+		String alergias = llamar("GET", "/api/pacientes/" + paciente + "/alergias", null, medico).cuerpo().toString();
+		assertThat(alergias).contains("SEVERA").contains("por precaución");
+	}
+
+	@Test
 	@DisplayName("CP-38 Lote de 20 PDF: se procesan todos, de uno en uno")
 	void loteDeVeinte() throws Exception {
 		iaResponde(String.valueOf(DNI.incrementAndGet()), "Lote", "Prueba");

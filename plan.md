@@ -264,6 +264,7 @@ Subida (ADMISION, TRIAJE o MEDICO)
 - **Paciente antiguo:** se ubica por tipo y número de documento (huella). Se agrega su historia y **no se cambian sus datos
   personales**. Si el nombre del PDF no coincide, Admisión debe confirmar: así no se mezclan dos historias.
 - **Paciente nuevo:** se crea con los datos personales del PDF, que Admisión revisa antes de aprobar.
+- Si el documento no indica la gravedad de una alergia, se registra como **severa por precaución**, con el motivo a la vista: sin médico que revise, la IA no la supone.
 - La propuesta de la IA se guarda **cifrada** y se borra al aprobar o rechazar. Un mismo archivo no se procesa dos veces.
 - Lo aprobado se registra con las reglas de la revisión (5.5). El documento queda en la ficha con el aviso «Aprobado por
   Admisión, sin revisión médica». Las consultas antiguas pasan como antecedentes: no se crean atenciones, porque una

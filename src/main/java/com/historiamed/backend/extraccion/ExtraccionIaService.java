@@ -372,7 +372,21 @@ public class ExtraccionIaService {
 		}
 		List<DatoIa> datos = r.datos() == null ? List.of() : r.datos();
 		return new PropuestaIa(r.paciente(), datos.stream().limit(MAXIMO_DATOS).map(ExtraccionIaService::comoItem)
-			.filter(i -> i != null).toList());
+			.filter(i -> i != null).map(ExtraccionIaService::conGravedadPrudente).toList());
+	}
+
+	/**
+	 * La gravedad de una alergia es obligatoria, pero muchas historias no la dicen. Sin médico que lo revise, no se deja
+	 * que la IA la suponga: se registra como severa, la opción segura, y queda escrito el motivo.
+	 */
+	static ItemRequest conGravedadPrudente(ItemRequest d) {
+		if (d.categoria() != Categoria.ALERGIA || d.gravedad() != null) {
+			return d;
+		}
+		String detalle = recortar((d.detalle() == null ? "" : d.detalle() + ". ") + "Gravedad no indicada en el documento: registrada como severa por precaución", 300);
+		return new ItemRequest(d.categoria(), d.descripcion(), detalle, d.fecha(), d.tipoAlergia(), GravedadAlergia.SEVERA,
+				d.cieCodigo(), d.medicamentoId(), d.valor(), d.unidad(), d.rangoReferencia(), d.tipoAntecedente(),
+				d.fragmentoOrigen(), d.pagina());
 	}
 
 	/** Registra lo aceptado con las mismas reglas de la revisión. Devuelve cuántos datos pasaron a la historia. */
@@ -414,6 +428,7 @@ public class ExtraccionIaService {
 			objeto "paciente" copia los datos personales tal como están escritos; deja vacío lo que no aparezca. Usa la fecha
 			de nacimiento en formato AAAA-MM-DD. tipoDocumento es DNI, CARNET_EXTRANJERIA o PASAPORTE; sexo es FEMENINO o
 			MASCULINO. Los datos personales van solo en ese objeto, nunca en la lista de datos clínicos.
+			En una alergia, gravedad va vacía salvo que el documento la indique de forma expresa: nunca la supongas.
 			Registra cada consulta anterior como un dato DIAGNOSTICO con su fecha, y los medicamentos indicados como
 			MEDICAMENTO.""";
 
