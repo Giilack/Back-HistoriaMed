@@ -5,6 +5,8 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.hibernate.Hibernate;
+
 import com.historiamed.backend.cita.Cita;
 import com.historiamed.backend.common.entity.EntidadBase;
 import com.historiamed.backend.common.exception.ReglaNegocioException;
@@ -150,7 +152,7 @@ public class Atencion extends EntidadBase {
 		}
 		Adenda a = new Adenda(this, autor, texto);
 		// Carga la lista antes de agregar: si no, Hibernate podría mostrar la adenda dos veces al leerla después
-		adendas.size();
+		Hibernate.initialize(adendas);
 		adendas.add(a);
 		return a;
 	}

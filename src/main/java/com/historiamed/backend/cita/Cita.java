@@ -120,6 +120,7 @@ public class Cita extends EntidadBase {
 			case ATENDIDO -> atendidoEn = ahora;
 			case CANCELADA -> canceladaEn = ahora;
 			default -> {
+				// PROGRAMADA y NO_SE_PRESENTO no registran una hora propia
 			}
 		}
 		estado = nuevo;

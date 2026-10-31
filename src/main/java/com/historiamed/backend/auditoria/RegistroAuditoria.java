@@ -2,6 +2,8 @@ package com.historiamed.backend.auditoria;
 
 import java.time.Instant;
 
+import com.historiamed.backend.common.security.UsuarioActual;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -57,12 +59,12 @@ public class RegistroAuditoria {
 	@Column(updatable = false)
 	private String ip;
 
-	RegistroAuditoria(Long usuarioId, String username, String rol, AccionAuditoria accion, String recurso,
-			String recursoId, Long pacienteId, String detalle, String ip) {
+	RegistroAuditoria(UsuarioActual actor, AccionAuditoria accion, String recurso, String recursoId, Long pacienteId,
+			String detalle, String ip) {
 		this.fecha = Instant.now();
-		this.usuarioId = usuarioId;
-		this.username = username;
-		this.rol = rol;
+		this.usuarioId = actor.id();
+		this.username = actor.username();
+		this.rol = actor.rol();
 		this.accion = accion;
 		this.recurso = recurso;
 		this.recursoId = recursoId;
