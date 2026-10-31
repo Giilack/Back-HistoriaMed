@@ -26,6 +26,7 @@ import com.historiamed.backend.catalogo.Medicamento;
 import com.historiamed.backend.cita.Cita;
 import com.historiamed.backend.cita.CitaService;
 import com.historiamed.backend.cita.EstadoCita;
+import com.historiamed.backend.common.dto.Conteo;
 import com.historiamed.backend.common.exception.AccesoProhibidoException;
 import com.historiamed.backend.common.exception.RecursoNoEncontradoException;
 import com.historiamed.backend.common.exception.ReglaNegocioException;
@@ -372,6 +373,12 @@ public class AtencionService {
 
 	private static String limpiar(String texto) {
 		return texto == null || texto.isBlank() ? null : texto.trim();
+	}
+
+	/** Diagnósticos principales más frecuentes del período. Solo cifras: no identifican a ningún paciente. */
+	@Transactional(readOnly = true)
+	public List<Conteo> diagnosticosFrecuentes(LocalDate desde, LocalDate hasta, int limite) {
+		return repository.contarDiagnosticosPrincipales(desde, hasta, PageRequest.of(0, limite));
 	}
 
 }

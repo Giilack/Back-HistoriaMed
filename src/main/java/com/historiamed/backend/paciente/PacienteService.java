@@ -255,4 +255,11 @@ public class PacienteService {
 				cb.literal("AEIOUUaeiouu")));
 	}
 
+	/** Pacientes registrados en el período (días en hora de Lima). Solo una cifra: no identifica a nadie. */
+	@Transactional(readOnly = true)
+	public long contarRegistrados(LocalDate desde, LocalDate hasta) {
+		return repository.countByCreadoEnGreaterThanEqualAndCreadoEnLessThan(desde.atStartOfDay(Tiempo.ZONA).toInstant(),
+				hasta.plusDays(1).atStartOfDay(Tiempo.ZONA).toInstant());
+	}
+
 }
