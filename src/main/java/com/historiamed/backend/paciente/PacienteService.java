@@ -98,6 +98,19 @@ public class PacienteService {
 		return repository.findById(id).orElseThrow(() -> new RecursoNoEncontradoException("Paciente", id));
 	}
 
+	/** El paciente con ese documento, para otros módulos. No se audita como consulta. */
+	@Transactional(readOnly = true)
+	public java.util.Optional<Paciente> porDocumento(TipoDocumento tipo, String numero) {
+		return repository.findByTipoDocumentoAndNumeroDocumentoHuella(tipo, cifrado.huella(numero.trim().toUpperCase(Locale.ROOT)));
+	}
+
+	/** Compara sin tildes ni mayúsculas: el apellido debe coincidir y el primer nombre aparecer en el registrado. */
+	public boolean mismaPersona(Paciente p, String nombres, String apellidoPaterno) {
+		String primerNombre = comparable(nombres).split(" ")[0];
+		return comparable(p.getApellidoPaterno()).equals(comparable(apellidoPaterno))
+				&& !primerNombre.isEmpty() && comparable(p.getNombres()).contains(primerNombre);
+	}
+
 	@Transactional
 	public Paciente registrar(PacienteRequest req) {
 		Paciente p = new Paciente();
@@ -243,6 +256,10 @@ public class PacienteService {
 		}
 		String t = texto.trim().replaceAll("\\s+", " ");
 		return t.isEmpty() ? null : t;
+	}
+
+	private static String comparable(String texto) {
+		return texto == null ? "" : sinTildes(texto).trim().toLowerCase(Locale.ROOT);
 	}
 
 	private static String sinTildes(String texto) {

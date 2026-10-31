@@ -28,8 +28,8 @@ Paciente llega → ADMISIÓN → TRIAJE → MÉDICO → Atención cerrada
 
 | # | Principio | Consecuencia en el sistema |
 |---|---|---|
-| P1 | **Mínimo privilegio** | Cada rol ve y hace solo lo que su función requiere. El ADMIN **no** lee historias clínicas. |
-| P2 | **La IA sugiere, el humano decide** | Nada que genere la IA entra a la historia clínica sin que un médico lo confirme. |
+| P1 | **Mínimo privilegio** | Cada rol ve y hace solo lo que su función requiere. El ADMIN **no** lee historias clínicas. Excepción acotada: Admisión ve el contenido de un documento mientras lo revisa en la importación masiva (5.5.1), y cada apertura se audita. |
+| P2 | **La IA sugiere, el humano decide** | Nada que genere la IA entra a la historia clínica sin que una persona lo confirme: el médico en los documentos del paciente, Admisión en la importación masiva (5.5.1). |
 | P3 | **La historia clínica no se borra ni se reescribe** | Una atención cerrada es inmutable. Las correcciones se hacen con una **adenda** (nota aclaratoria con fecha y autor). Borrado solo lógico. |
 | P4 | **Todo acceso queda registrado** | Quién vio o modificó qué historia, cuándo y desde dónde (auditoría). |
 | P5 | **Datos sintéticos** | En desarrollo y sustentación **nunca** se usan datos reales de pacientes. |
@@ -219,7 +219,7 @@ Subida (ADMISION, TRIAJE o MEDICO)
 ```
 
 - **Una sola pantalla de revisión**, con el documento al lado y los datos agrupados por categoría. La llena una persona (fase 8) o la IA como propuesta (fase 11); en ambos casos **el médico valida** cada dato: lo acepta, lo corrige o lo descarta (P2).
-- **ADMISION sube el archivo pero no llena ni ve los datos clínicos** (P1). El llenado manual lo hacen TRIAJE o MEDICO; la validación, solo el MEDICO.
+- En la ficha del paciente, **ADMISION sube el archivo pero no llena ni ve los datos clínicos** (P1); la importación masiva es la excepción (5.5.1). El llenado manual lo hacen TRIAJE o MEDICO; la validación, solo el MEDICO.
 - **Categorías y destino de cada dato validado:**
 
   | Categoría | Destino al validar |
@@ -251,6 +251,26 @@ Subida (ADMISION, TRIAJE o MEDICO)
 7. Sin `GEMINI_API_KEY` la IA queda desactivada y el sistema funciona igual, a mano.
 
 **Limitación a considerar:** los PDF digitales y los documentos impresos escaneados se extraen bien. **La letra manuscrita**, sobre todo la médica, tiene una precisión baja con herramientas gratuitas. Se procesa como "mejor esfuerzo" y siempre requiere revisión. Conviene mencionarlo como limitación en la sustentación.
+
+### 5.5.1 Importación masiva de historias anteriores (islas de datos)
+
+> Decisión del 31/10/2026: el problema central son las historias que existen solo en papel o PDF. Los médicos no tienen
+> tiempo de revisarlas una por una, así que **Admisión sube, revisa y aprueba** esos documentos.
+
+- **Admisión** sube varios PDF a la vez (20 o más). Cada archivo viaja en su propia petición, en binario, y la pantalla
+  los envía de uno en uno; así un lote no ocupa la memoria del servidor (512 MB) ni supera los 11 MB por petición.
+- **Cola:** los archivos quedan en la tabla `importaciones` y la IA los lee de uno en uno, con una pausa entre cada uno
+  para respetar el límite de Gemini. Si Gemini responde 429, el documento vuelve a la cola. Un reinicio no pierde trabajo.
+- **Paciente antiguo:** se ubica por tipo y número de documento (huella). Se agrega su historia y **no se cambian sus datos
+  personales**. Si el nombre del PDF no coincide, Admisión debe confirmar: así no se mezclan dos historias.
+- **Paciente nuevo:** se crea con los datos personales del PDF, que Admisión revisa antes de aprobar.
+- Si el documento no indica la gravedad de una alergia, se registra como **severa por precaución**, con el motivo a la vista: sin médico que revise, la IA no la supone.
+- La propuesta de la IA se guarda **cifrada** y se borra al aprobar o rechazar. Un mismo archivo no se procesa dos veces.
+- Lo aprobado se registra con las reglas de la revisión (5.5). El documento queda en la ficha con el aviso «Aprobado por
+  Admisión, sin revisión médica». Las consultas antiguas pasan como antecedentes: no se crean atenciones, porque una
+  atención la firma un médico del establecimiento.
+- **Triaje** sigue pudiendo subir y extraer con IA en la ficha, sin aprobar: el médico da el visto bueno (5.5).
+- **Condición:** con la capa gratuita de Gemini solo se usan datos ficticios (P6).
 
 ### 5.6 Asistente clínico (chatbot del médico)
 > ✅ **Implementado** (módulo `asistente`, `POST /api/pacientes/{id}/asistente`, solo MEDICO). Con Gemini y datos demo
