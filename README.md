@@ -58,6 +58,17 @@ La API queda en `http://localhost:8080`. Estado: `http://localhost:8080/actuator
 Pruebas unitarias de las reglas de negocio (autenticación, pacientes, citas, triaje, alergias, atención, documentos, cifrado y revisión de documentos).
 La prueba de contexto con Testcontainers se omite automáticamente si no hay Docker.
 
+### Cobertura y calidad (SonarQube)
+
+```powershell
+.\mvnw.cmd verify                 # pruebas + reporte de cobertura en target/site/jacoco/index.html
+$env:SONAR_TOKEN = "..."         # token personal de SonarQube (nunca en el repositorio)
+.\sonar.ps1                       # pruebas, cobertura y análisis en http://localhost:9000
+```
+
+SonarQube corre en local con Docker (`docker run -d --name sonarqube -p 9000:9000 sonarqube:community`). La carga de
+datos de demostración no cuenta para la cobertura.
+
 ## Datos de demostración 
 
 Datos **100 % ficticios** (principio P5: nunca datos reales). Se cargan **solo** si `DEMO=true` **y** la base no tiene
