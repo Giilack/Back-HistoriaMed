@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -342,6 +343,93 @@ public class ExtraccionIaService {
 				List.of("categoria", "descripcion", "fragmentoOrigen"));
 		return Map.of("type", "OBJECT", "properties", Map.of("datos", Map.of("type", "ARRAY", "items", dato)),
 				"required", List.of("datos"));
+	}
+
+	// ------------------------------------------------------------------------------------------------------------
+	// Importación de historias: además de los datos clínicos, la IA lee los datos personales
+	// ------------------------------------------------------------------------------------------------------------
+
+	/** Datos personales tal como aparecen en el documento. */
+	public record DatosPersonalesIa(String tipoDocumento, String numeroDocumento, String nombres, String apellidoPaterno,
+			String apellidoMaterno, String fechaNacimiento, String sexo, String telefono, String direccion) {
+	}
+
+	public record PropuestaIa(DatosPersonalesIa paciente, List<ItemRequest> datos) {
+	}
+
+	private record RespuestaImportacion(DatosPersonalesIa paciente, List<DatoIa> datos) {
+	}
+
+	/** Lee un documento sin paciente. No guarda nada: la propuesta espera la decisión de Admisión. */
+	public PropuestaIa proponerImportacion(byte[] contenido, String mimeType) {
+		String respuesta = proveedor.extraerJson(contenido, mimeType, instrucciones() + INSTRUCCIONES_IMPORTACION, esquemaImportacion());
+		RespuestaImportacion r;
+		try {
+			r = json.readValue(respuesta, RespuestaImportacion.class);
+		}
+		catch (RuntimeException ex) {
+			throw new ErrorIaException("La respuesta de la IA no tiene el formato esperado", ex);
+		}
+		List<DatoIa> datos = r.datos() == null ? List.of() : r.datos();
+		return new PropuestaIa(r.paciente(), datos.stream().limit(MAXIMO_DATOS).map(ExtraccionIaService::comoItem)
+			.filter(i -> i != null).toList());
+	}
+
+	/** Registra lo aceptado con las mismas reglas de la revisión. Devuelve cuántos datos pasaron a la historia. */
+	@Transactional
+	public int registrarImportada(Documento documento, List<ItemRequest> datos, Set<Integer> aceptados, String modelo) {
+		Usuario quien = usuarioService.obtener(UsuarioActual.requerido().id());
+		Extraccion e = new Extraccion();
+		e.setDocumento(documento);
+		e.setPaciente(documento.getPaciente());
+		e.setOrigen(Extraccion.Origen.IA);
+		e.setCreadoPor(quien);
+		e.setIaEstado(Extraccion.EstadoIa.COMPLETADA);
+		e.setIaModelo(modelo);
+		List<ExtraccionItem> elegidos = new ArrayList<>();
+		for (int i = 0; i < datos.size(); i++) {
+			ExtraccionItem item = new ExtraccionItem();
+			item.setExtraccion(e);
+			item.setCreadoPor(quien);
+			item.setPropuestoPorIa(true);
+			if (aplicar(item, datos.get(i))) {
+				e.getItems().add(item);
+				if (aceptados.contains(i)) {
+					elegidos.add(item);
+				}
+			}
+		}
+		if (e.getItems().isEmpty()) {
+			return 0;
+		}
+		repository.saveAndFlush(e);
+		extraccionService.validar(e.getId(), elegidos.stream().map(ExtraccionItem::getId).collect(Collectors.toSet()));
+		return elegidos.size();
+	}
+
+	private static final String INSTRUCCIONES_IMPORTACION = """
+
+
+			Este documento es de una historia anterior y todavía no se sabe de qué paciente es. Excepción a la regla 2: en el
+			objeto "paciente" copia los datos personales tal como están escritos; deja vacío lo que no aparezca. Usa la fecha
+			de nacimiento en formato AAAA-MM-DD. tipoDocumento es DNI, CARNET_EXTRANJERIA o PASAPORTE; sexo es FEMENINO o
+			MASCULINO. Los datos personales van solo en ese objeto, nunca en la lista de datos clínicos.
+			Registra cada consulta anterior como un dato DIAGNOSTICO con su fecha, y los medicamentos indicados como
+			MEDICAMENTO.""";
+
+	private static Map<String, Object> esquemaImportacion() {
+		Map<String, Object> personales = new LinkedHashMap<>();
+		for (String campo : List.of("tipoDocumento", "numeroDocumento", "nombres", "apellidoPaterno", "apellidoMaterno",
+				"fechaNacimiento", "sexo", "telefono", "direccion")) {
+			personales.put(campo, texto());
+		}
+		Map<String, Object> esquema = new LinkedHashMap<>(esquema());
+		@SuppressWarnings("unchecked")
+		Map<String, Object> propiedades = new LinkedHashMap<>((Map<String, Object>) esquema.get("properties"));
+		propiedades.put("paciente", Map.of(TIPO, "OBJECT", "properties", personales));
+		esquema.put("properties", propiedades);
+		esquema.put("required", List.of("paciente", "datos"));
+		return esquema;
 	}
 
 	private static Map<String, Object> texto() {

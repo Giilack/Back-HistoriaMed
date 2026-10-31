@@ -11,6 +11,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
  * gratuito tiene 512 MB y la capa gratuita de la IA limita las consultas por minuto.
  */
 @Configuration
+@org.springframework.scheduling.annotation.EnableScheduling
 public class ConfiguracionIa {
 
 	public static final String EJECUTOR = "ejecutorIa";
