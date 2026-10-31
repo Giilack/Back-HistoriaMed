@@ -41,7 +41,10 @@ class ProveedorGeminiTest {
 		var proveedor = new ProveedorGemini(" ", "gemini-prueba", 30, json);
 
 		assertThat(proveedor.disponible()).isFalse();
-		assertThatThrownBy(() -> proveedor.extraerJson(new byte[0], "application/pdf", "", java.util.Map.of()))
+		byte[] vacio = new byte[0];
+		java.util.Map<String, Object> esquema = java.util.Map.of();
+
+		assertThatThrownBy(() -> proveedor.extraerJson(vacio, "application/pdf", "", esquema))
 			.isInstanceOf(ErrorIaException.class);
 	}
 

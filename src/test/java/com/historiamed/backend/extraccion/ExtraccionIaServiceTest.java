@@ -173,8 +173,9 @@ class ExtraccionIaServiceTest {
 		revision.setIaEstado(Extraccion.EstadoIa.PROCESANDO);
 		ExtraccionService extraccionService = new ExtraccionService(repository, documentoService, catalogoService,
 				alergiaService, antecedenteService, laboratorioService, usuarioService, auditoria);
+		java.util.Set<Long> ninguno = java.util.Set.of();
 
-		assertThatThrownBy(() -> extraccionService.validar(REVISION, java.util.Set.of()))
+		assertThatThrownBy(() -> extraccionService.validar(REVISION, ninguno))
 			.isInstanceOf(ReglaNegocioException.class)
 			.hasMessageContaining("IA");
 	}

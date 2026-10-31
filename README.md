@@ -51,12 +51,29 @@ La API queda en `http://localhost:8080`. Estado: `http://localhost:8080/actuator
 
 ## Pruebas
 
+- **Funcionales de la API:** `FlujoClinicoApiTest` levanta el servidor con PostgreSQL real (Testcontainers) y recorre
+  el flujo clínico con JWT real. Cada prueba indica su caso del plan de pruebas.
+- **Interoperabilidad:** contrato con Gemini y Cloudflare Turnstile (`*ContratoTest`) sin red, y contra los servicios
+  reales con `PRUEBAS_EXTERNAS=true` (`ServiciosExternosRealesTest`). La colección de Postman está en
+  `docs/pruebas-integracion/` y se ejecuta con Newman.
+
 ```powershell
 .\mvnw.cmd test
 ```
 
 Pruebas unitarias de las reglas de negocio (autenticación, pacientes, citas, triaje, alergias, atención, documentos, cifrado y revisión de documentos).
 La prueba de contexto con Testcontainers se omite automáticamente si no hay Docker.
+
+### Cobertura y calidad (SonarQube)
+
+```powershell
+.\mvnw.cmd verify                 # pruebas + reporte de cobertura en target/site/jacoco/index.html
+$env:SONAR_TOKEN = "..."         # token personal de SonarQube (nunca en el repositorio)
+.\sonar.ps1                       # pruebas, cobertura y análisis en http://localhost:9000
+```
+
+SonarQube corre en local con Docker (`docker run -d --name sonarqube -p 9000:9000 sonarqube:community`). La carga de
+datos de demostración no cuenta para la cobertura.
 
 ## Datos de demostración 
 

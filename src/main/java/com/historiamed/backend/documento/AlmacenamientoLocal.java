@@ -9,7 +9,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.core.io.PathResource;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
@@ -55,7 +55,7 @@ public class AlmacenamientoLocal implements AlmacenamientoService {
 		if (!Files.isRegularFile(archivo)) {
 			throw new RecursoNoEncontradoException("Archivo del documento", clave);
 		}
-		return new PathResource(archivo);
+		return new FileSystemResource(archivo);
 	}
 
 	/** Resuelve la clave dentro de la carpeta base, impidiendo salir de ella ("../"). */

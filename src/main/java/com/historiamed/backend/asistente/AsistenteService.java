@@ -94,11 +94,15 @@ public class AsistenteService {
 			9. Solo respondes sobre este paciente. Si te preguntan por otra persona, dilo y no respondas.
 			""".formatted(SIN_REGISTRO);
 
+	private static final Map<String, Object> TEXTO = Map.of("type", "STRING");
+
+	private static final Map<String, Object> LISTA_DE_TEXTOS = Map.of("type", "ARRAY", "items", TEXTO);
+
 	static final Map<String, Object> ESQUEMA = Map.of("type", "OBJECT", "properties",
-			Map.of("respuesta", Map.of("type", "STRING"),
-					"fuentes", Map.of("type", "ARRAY", "items", Map.of("type", "STRING")),
+			Map.of("respuesta", TEXTO,
+					"fuentes", LISTA_DE_TEXTOS,
 					"esRecomendacion", Map.of("type", "BOOLEAN"),
-					"medicamentosSugeridos", Map.of("type", "ARRAY", "items", Map.of("type", "STRING"))),
+					"medicamentosSugeridos", LISTA_DE_TEXTOS),
 			"required", List.of("respuesta", "fuentes", "esRecomendacion", "medicamentosSugeridos"));
 
 	private final ProveedorIA ia;
@@ -163,26 +167,44 @@ public class AsistenteService {
 
 	List<Fragmento> contexto(Long pacienteId, List<Alergia> activas) {
 		List<Fragmento> lista = new ArrayList<>();
+		agregarAlergias(lista, activas);
+		agregarAtenciones(lista, pacienteId);
+		agregarAntecedentes(lista, pacienteId);
+		agregarLaboratorio(lista, pacienteId);
+		agregarTriajes(lista, pacienteId);
+		return lista;
+	}
+
+	private static void agregarAlergias(List<Fragmento> lista, List<Alergia> activas) {
 		int n = 1;
 		for (Alergia a : activas) {
 			lista.add(new Fragmento("AL" + n++, "Alergia registrada: " + a.getSustancia(),
 					unir("Alergia", a.getTipo(), a.getSustancia(), a.getReaccion(), "gravedad " + a.getGravedad())));
 		}
-		n = 1;
+	}
+
+	private void agregarAtenciones(List<Fragmento> lista, Long pacienteId) {
+		int n = 1;
 		for (AtencionResponse at : atenciones.historia(pacienteId)) {
 			String fecha = fecha(at.inicioEn());
 			String medico = at.medico() == null ? "" : at.medico().nombreCompleto();
 			lista.add(new Fragmento("A" + n++, "Atención del " + fecha + (medico.isEmpty() ? "" : ", " + medico),
 					atencion(at, fecha, medico)));
 		}
-		n = 1;
+	}
+
+	private void agregarAntecedentes(List<Fragmento> lista, Long pacienteId) {
+		int n = 1;
 		for (AntecedenteResponse an : antecedentes.listar(pacienteId)) {
 			if (an.activo()) {
 				lista.add(new Fragmento("AN" + n++, "Antecedente: " + an.descripcion(), unir("Antecedente", an.tipo(),
 						an.descripcion(), an.detalle(), an.cieCodigo(), an.fecha() == null ? null : FECHA.format(an.fecha()))));
 			}
 		}
-		n = 1;
+	}
+
+	private void agregarLaboratorio(List<Fragmento> lista, Long pacienteId) {
+		int n = 1;
 		for (ResultadoLaboratorioResponse l : laboratorio.listar(pacienteId)) {
 			if (l.activo() && n <= MAXIMO_LABORATORIO) {
 				String fecha = l.fecha() == null ? "sin fecha" : FECHA.format(l.fecha());
@@ -191,7 +213,10 @@ public class AsistenteService {
 						l.rangoReferencia() == null ? null : "referencia " + l.rangoReferencia())));
 			}
 		}
-		n = 1;
+	}
+
+	private void agregarTriajes(List<Fragmento> lista, Long pacienteId) {
+		int n = 1;
 		for (TriajeResponse t : triajes.historial(pacienteId)) {
 			if (n > MAXIMO_TRIAJES) {
 				break;
@@ -199,7 +224,6 @@ public class AsistenteService {
 			String fecha = fecha(t.fechaHora());
 			lista.add(new Fragmento("T" + n++, "Triaje del " + fecha, triaje(t, fecha)));
 		}
-		return lista;
 	}
 
 	private static String atencion(AtencionResponse a, String fecha, String medico) {

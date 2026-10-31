@@ -36,6 +36,8 @@ public class CifradoDatos {
 
 	private static final String ALGORITMO = "AES/GCM/NoPadding";
 
+	private static final String HMAC = "HmacSHA256";
+
 	private static final int BYTES_IV = 12;
 
 	private static final int BITS_ETIQUETA = 128;
@@ -50,7 +52,7 @@ public class CifradoDatos {
 		byte[] maestra = decodificarClave(claveMaestraBase64);
 		// Dos claves distintas derivadas de la maestra: una para cifrar y otra para las huellas
 		this.claveCifrado = new SecretKeySpec(derivar(maestra, "historiamed-cifrado-v1"), "AES");
-		this.claveHuella = new SecretKeySpec(derivar(maestra, "historiamed-huella-v1"), "HmacSHA256");
+		this.claveHuella = new SecretKeySpec(derivar(maestra, "historiamed-huella-v1"), HMAC);
 	}
 
 	/** Cifra el texto; {@code null} queda {@code null}. */
@@ -108,7 +110,7 @@ public class CifradoDatos {
 			return null;
 		}
 		try {
-			Mac mac = Mac.getInstance("HmacSHA256");
+			Mac mac = Mac.getInstance(HMAC);
 			mac.init(claveHuella);
 			return HexFormat.of().formatHex(mac.doFinal(texto.getBytes(StandardCharsets.UTF_8)));
 		}
@@ -138,8 +140,8 @@ public class CifradoDatos {
 	/** Deriva una subclave de 32 bytes: HMAC-SHA256(maestra, propósito). */
 	private static byte[] derivar(byte[] maestra, String proposito) {
 		try {
-			Mac mac = Mac.getInstance("HmacSHA256");
-			mac.init(new SecretKeySpec(maestra, "HmacSHA256"));
+			Mac mac = Mac.getInstance(HMAC);
+			mac.init(new SecretKeySpec(maestra, HMAC));
 			return mac.doFinal(proposito.getBytes(StandardCharsets.UTF_8));
 		}
 		catch (GeneralSecurityException e) {

@@ -1,13 +1,11 @@
 package com.historiamed.backend.documento;
 
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.UUID;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import com.historiamed.backend.common.exception.RecursoNoEncontradoException;
@@ -25,28 +23,25 @@ public class AlmacenamientoBaseDatos implements AlmacenamientoService {
 
 	private static final DateTimeFormatter CARPETA_MES = DateTimeFormatter.ofPattern("yyyy/MM");
 
-	private final JdbcTemplate jdbc;
+	private final ArchivoRepository repository;
 
-	public AlmacenamientoBaseDatos(JdbcTemplate jdbc) {
-		this.jdbc = jdbc;
+	public AlmacenamientoBaseDatos(ArchivoRepository repository) {
+		this.repository = repository;
 	}
 
 	@Override
 	public String guardar(byte[] contenido, String extension) {
 		// Mismo formato de clave que el almacenamiento local: la clave no revela nada del paciente
 		String clave = Tiempo.hoy().format(CARPETA_MES) + "/" + UUID.randomUUID() + "." + extension;
-		jdbc.update("INSERT INTO archivos (clave, contenido) VALUES (?, ?)", clave, contenido);
+		repository.save(new Archivo(clave, contenido));
 		return clave;
 	}
 
 	@Override
 	public Resource obtener(String clave) {
-		List<byte[]> filas = jdbc.query("SELECT contenido FROM archivos WHERE clave = ?",
-				(rs, n) -> rs.getBytes("contenido"), clave);
-		if (filas.isEmpty()) {
-			throw new RecursoNoEncontradoException("Archivo del documento", clave);
-		}
-		return new ByteArrayResource(filas.get(0));
+		Archivo archivo = repository.findById(clave)
+			.orElseThrow(() -> new RecursoNoEncontradoException("Archivo del documento", clave));
+		return new ByteArrayResource(archivo.getContenido());
 	}
 
 }

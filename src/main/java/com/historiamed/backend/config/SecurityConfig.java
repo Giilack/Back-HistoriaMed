@@ -35,7 +35,7 @@ import com.historiamed.backend.common.security.UsuarioActual;
 public class SecurityConfig {
 
 	@Bean
-	SecurityFilterChain securityFilterChain(HttpSecurity http, EscritorErrorJson escritorError) throws Exception {
+	SecurityFilterChain securityFilterChain(HttpSecurity http, EscritorErrorJson escritorError) {
 		http
 			// Sin sesiones ni formularios: el token viaja en el header Authorization. La cookie de refresh es
 			// SameSite=Strict, lo que la protege de CSRF.

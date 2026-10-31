@@ -184,6 +184,24 @@ El administrador es `admin`, con la contraseña inicial del paso 4; el sistema o
 
 Guardar capturas de cada paso en `docs/despliegue/evidencias/`.
 
+### 9.1 Validación automatizada
+
+Después de cada despliegue se ejecutan estas pruebas contra la nube. **Solo leen datos ficticios**: los casos que
+escriben se omiten con `E2E_SOLO_LECTURA=true`. La contraseña de los usuarios demo se pasa por variable de entorno,
+nunca en el repositorio.
+
+```powershell
+# Interoperabilidad (Render, Vercel, Neon y Gemini), desde backend/docs/pruebas-integracion
+npx newman run HistoriaMed.postman_collection.json --env-var api=https://historiamed-backend.onrender.com `
+  --env-var web=https://front-historia-med.vercel.app --env-var clave=$env:E2E_PASSWORD --timeout-request 90000
+
+# Interfaz, usabilidad y accesibilidad, desde frontend
+$env:E2E_URL = "https://front-historia-med.vercel.app"; $env:E2E_SOLO_LECTURA = "true"
+$env:E2E_PASSWORD = "..."
+pnpm e2e
+pnpm e2e:lighthouse
+```
+
 ## 10. Actualizar el sistema
 
 Cada push a `main` despliega de nuevo: Vercel el frontend y Render el backend. Las migraciones nuevas se aplican
