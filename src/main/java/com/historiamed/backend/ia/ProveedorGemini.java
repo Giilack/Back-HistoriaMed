@@ -34,7 +34,7 @@ public class ProveedorGemini implements ProveedorIA {
 
 	private static final String URL = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent";
 
-	private final String url;
+	private final String plantillaUrl;
 
 	private final String clave;
 
@@ -54,8 +54,8 @@ public class ProveedorGemini implements ProveedorIA {
 	}
 
 	/** Permite apuntar a un servidor local en las pruebas de contrato. */
-	ProveedorGemini(String clave, String modelo, long segundosMaximos, JsonMapper json, String url) {
-		this.url = url;
+	ProveedorGemini(String clave, String modelo, long segundosMaximos, JsonMapper json, String plantillaUrl) {
+		this.plantillaUrl = plantillaUrl;
 		this.clave = clave == null ? "" : clave.trim();
 		this.modelo = modelo.trim();
 		this.tiempoMaximo = Duration.ofSeconds(segundosMaximos);
@@ -97,7 +97,7 @@ public class ProveedorGemini implements ProveedorIA {
 						// Sin creatividad: se busca responder con los datos, no inventar
 						"temperature", 0));
 
-		HttpRequest peticion = HttpRequest.newBuilder(URI.create(url.formatted(modelo)))
+		HttpRequest peticion = HttpRequest.newBuilder(URI.create(plantillaUrl.formatted(modelo)))
 			.timeout(tiempoMaximo)
 			.header("Content-Type", "application/json")
 			// La clave va en una cabecera, no en la URL: así no queda en registros de acceso

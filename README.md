@@ -51,6 +51,12 @@ La API queda en `http://localhost:8080`. Estado: `http://localhost:8080/actuator
 
 ## Pruebas
 
+- **Funcionales de la API:** `FlujoClinicoApiTest` levanta el servidor con PostgreSQL real (Testcontainers) y recorre
+  el flujo clínico con JWT real. Cada prueba indica su caso del plan de pruebas.
+- **Interoperabilidad:** contrato con Gemini y Cloudflare Turnstile (`*ContratoTest`) sin red, y contra los servicios
+  reales con `PRUEBAS_EXTERNAS=true` (`ServiciosExternosRealesTest`). La colección de Postman está en
+  `docs/pruebas-integracion/` y se ejecuta con Newman.
+
 ```powershell
 .\mvnw.cmd test
 ```

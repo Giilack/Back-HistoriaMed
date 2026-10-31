@@ -1,6 +1,10 @@
 package com.historiamed.backend.integracion;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -22,9 +26,11 @@ import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import com.historiamed.backend.TestcontainersConfiguration;
+import com.historiamed.backend.ia.ProveedorIA;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -54,6 +60,9 @@ class FlujoClinicoApiTest {
 
 	@Autowired
 	private JdbcTemplate jdbc;
+
+	@MockitoBean
+	private ProveedorIA ia;
 
 	private String admision;
 
@@ -230,13 +239,8 @@ class FlujoClinicoApiTest {
 	void auditoriaInmutable() throws Exception {
 		llamar("GET", "/api/pacientes?q=quispe", null, medico);
 
-		try {
-			jdbc.update("UPDATE registros_auditoria SET detalle = 'alterado'");
-			assertThat(false).as("El trigger debía impedir el cambio").isTrue();
-		}
-		catch (DataAccessException e) {
-			assertThat(e.getMessage()).isNotBlank();
-		}
+		assertThatThrownBy(() -> jdbc.update("UPDATE registros_auditoria SET detalle = 'alterado'"))
+			.isInstanceOf(DataAccessException.class);
 	}
 
 	@Test
@@ -259,7 +263,76 @@ class FlujoClinicoApiTest {
 		assertThat(r.cuerpo().toString()).doesNotContain("Mamani").doesNotContain("45678912");
 	}
 
+	// --- Documentos y asistente: la IA se reemplaza por un doble para no gastar la cuota ni depender de la red ---------
+
+	@Test
+	@DisplayName("CP-18 Un ejecutable renombrado a .pdf se rechaza y un PDF se guarda")
+	void formatoDeArchivo() throws Exception {
+		long paciente = registrarPaciente("Rosa", "Documento");
+
+		HttpResponse<String> falso = subir(paciente, "informe.pdf", new byte[] { 'M', 'Z', 0, 0 });
+		HttpResponse<String> pdf = subir(paciente, "informe.pdf", "%PDF-1.4 ficticio".getBytes(StandardCharsets.US_ASCII));
+
+		assertThat(falso.statusCode()).isBetween(400, 499);
+		assertThat(pdf.statusCode()).isEqualTo(201);
+		assertThat(llamar("GET", "/api/pacientes/" + paciente + "/documentos", null, medico).cuerpo()).hasSize(1);
+		long documento = json.readTree(pdf.body()).path("id").asLong();
+		HttpResponse<byte[]> archivo = http.send(HttpRequest
+			.newBuilder(URI.create("http://localhost:" + puerto + "/api/documentos/" + documento + "/archivo"))
+			.header("Authorization", "Bearer " + medico)
+			.build(), HttpResponse.BodyHandlers.ofByteArray());
+		assertThat(new String(archivo.body(), StandardCharsets.US_ASCII)).startsWith("%PDF");
+	}
+
+	@Test
+	@DisplayName("CP-25 El asistente cita la fuente, descarta citas inventadas y alerta alergias")
+	void asistenteClinico() throws Exception {
+		long paciente = registrarPaciente("Teresa", "Asistente");
+		llamar("POST", "/api/pacientes/" + paciente + "/alergias", Map.of("tipo", "MEDICAMENTO", "sustancia", "Penicilina",
+				"reaccion", "Urticaria", "gravedad", "SEVERA"), triaje);
+		long citaId = llamar("POST", "/api/citas/sin-cita",
+				Map.of("pacienteId", paciente, "medicoId", medicoId, "consultorioId", consultorioId, "motivo", "Fiebre"),
+				admision).cuerpo().path("id").asLong();
+		llamar("POST", "/api/citas/" + citaId + "/triaje", triaje(), triaje);
+		long atencionId = llamar("POST", "/api/citas/" + citaId + "/atencion", null, medico).cuerpo().path("id").asLong();
+		llamar("POST", "/api/atenciones/" + atencionId + "/cierre",
+				atencion(List.of(Map.of("codigo", "J02.9", "tipo", "PRESUNTIVO", "principal", true))), medico);
+		when(ia.disponible()).thenReturn(true);
+		when(ia.modelo()).thenReturn("modelo-doble");
+		when(ia.responderJson(anyString(), anyString(), any())).thenReturn("""
+				{"respuesta": "Alergia a penicilina. Se podría usar amoxicilina.", "fuentes": ["AL1", "A1", "INVENTADA"],
+				 "esRecomendacion": true, "medicamentosSugeridos": ["amoxicilina"]}""");
+
+		Respuesta r = llamar("POST", "/api/pacientes/" + paciente + "/asistente",
+				Map.of("pregunta", "¿Qué antibiótico le doy?", "historial", List.of()), medico);
+
+		assertThat(r.estado()).isEqualTo(200);
+		assertThat(r.cuerpo().path("fuentes")).hasSize(2);
+		assertThat(r.cuerpo().path("sugerencia").asBoolean()).isTrue();
+		assertThat(r.cuerpo().path("advertencias").toString()).contains("Alerta de alergia");
+		assertThat(contarAuditoria("CONSULTA_IA")).isPositive();
+		assertThat(llamar("POST", "/api/pacientes/" + paciente + "/asistente",
+				Map.of("pregunta", "¿Tiene alergias?", "historial", List.of()), triaje).estado()).isEqualTo(403);
+	}
+
 	// ----------------------------------------------------------------------------------------------------------------
+
+	private HttpResponse<String> subir(long paciente, String nombre, byte[] contenido) throws Exception {
+		String limite = "limite-de-prueba";
+		var cuerpo = new java.io.ByteArrayOutputStream();
+		String fin = "\r\n";
+		cuerpo.write(("--" + limite + fin + "Content-Disposition: form-data; name=\"archivo\"; filename=\"" + nombre + "\"" + fin
+				+ "Content-Type: application/pdf" + fin + fin).getBytes(StandardCharsets.UTF_8));
+		cuerpo.write(contenido);
+		cuerpo.write((fin + "--" + limite + fin + "Content-Disposition: form-data; name=\"tipo\"" + fin + fin + "LABORATORIO" + fin
+				+ "--" + limite + "--" + fin).getBytes(StandardCharsets.UTF_8));
+		return http.send(HttpRequest
+			.newBuilder(URI.create("http://localhost:" + puerto + "/api/pacientes/" + paciente + "/documentos"))
+			.header("Authorization", "Bearer " + medico)
+			.header("Content-Type", "multipart/form-data; boundary=" + limite)
+			.POST(HttpRequest.BodyPublishers.ofByteArray(cuerpo.toByteArray()))
+			.build(), HttpResponse.BodyHandlers.ofString());
+	}
 
 	private long contarAuditoria(String accion) {
 		Long total = jdbc.queryForObject("SELECT count(*) FROM registros_auditoria WHERE accion = ?", Long.class, accion);
