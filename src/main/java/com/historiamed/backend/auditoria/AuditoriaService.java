@@ -40,8 +40,8 @@ public class AuditoriaService {
 
 	private void guardar(AccionAuditoria accion, String recurso, Object recursoId, Long pacienteId, String detalle) {
 		UsuarioActual actor = UsuarioActual.obtener().orElse(new UsuarioActual(null, null, null));
-		repository.save(new RegistroAuditoria(actor.id(), actor.username(), actor.rol(), accion, recurso,
-				recursoId == null ? null : recursoId.toString(), pacienteId, detalle, ipActual()));
+		repository.save(new RegistroAuditoria(actor, accion, recurso, recursoId == null ? null : recursoId.toString(),
+				pacienteId, detalle, ipActual()));
 	}
 
 	/**
@@ -51,7 +51,7 @@ public class AuditoriaService {
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public void registrarComo(Long usuarioId, String username, String rol, AccionAuditoria accion, String recurso,
 			Object recursoId, String detalle) {
-		repository.save(new RegistroAuditoria(usuarioId, username, rol, accion, recurso,
+		repository.save(new RegistroAuditoria(new UsuarioActual(usuarioId, username, rol), accion, recurso,
 				recursoId == null ? null : recursoId.toString(), null, detalle, ipActual()));
 	}
 

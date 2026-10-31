@@ -28,6 +28,13 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<jacoco.version>0.8.13</jacoco.version>
+		<!-- SonarQube (ver sonar.ps1): proyecto y reporte de cobertura de JaCoCo -->
+		<sonar.projectKey>historiamed-backend</sonar.projectKey>
+		<sonar.projectName>HistoriaMed Backend</sonar.projectName>
+		<sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+		<!-- La carga de datos ficticios no es parte del sistema en uso: no cuenta para la cobertura -->
+		<sonar.coverage.exclusions>**/demo/**</sonar.coverage.exclusions>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -170,6 +177,27 @@
 								</path>
 							</annotationProcessorPaths>
 						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- Cobertura de pruebas: "mvnw verify" deja el reporte en target/site/jacoco (index.html y jacoco.xml) -->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>${jacoco.version}</version>
+				<executions>
+					<execution>
+						<id>preparar-agente</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>reporte</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
 					</execution>
 				</executions>
 			</plugin>

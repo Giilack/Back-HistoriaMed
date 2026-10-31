@@ -11,6 +11,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -33,6 +34,8 @@ public class ProveedorGemini implements ProveedorIA {
 
 	private static final String URL = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent";
 
+	private final String plantillaUrl;
+
 	private final String clave;
 
 	private final String modelo;
@@ -43,9 +46,16 @@ public class ProveedorGemini implements ProveedorIA {
 
 	private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
+	@Autowired
 	public ProveedorGemini(@Value("${historiamed.ia.gemini.api-key:}") String clave,
 			@Value("${historiamed.ia.gemini.modelo:gemini-3.5-flash-lite}") String modelo,
 			@Value("${historiamed.ia.gemini.segundos-maximos:120}") long segundosMaximos, JsonMapper json) {
+		this(clave, modelo, segundosMaximos, json, URL);
+	}
+
+	/** Permite apuntar a un servidor local en las pruebas de contrato. */
+	ProveedorGemini(String clave, String modelo, long segundosMaximos, JsonMapper json, String plantillaUrl) {
+		this.plantillaUrl = plantillaUrl;
 		this.clave = clave == null ? "" : clave.trim();
 		this.modelo = modelo.trim();
 		this.tiempoMaximo = Duration.ofSeconds(segundosMaximos);
@@ -87,7 +97,7 @@ public class ProveedorGemini implements ProveedorIA {
 						// Sin creatividad: se busca responder con los datos, no inventar
 						"temperature", 0));
 
-		HttpRequest peticion = HttpRequest.newBuilder(URI.create(URL.formatted(modelo)))
+		HttpRequest peticion = HttpRequest.newBuilder(URI.create(plantillaUrl.formatted(modelo)))
 			.timeout(tiempoMaximo)
 			.header("Content-Type", "application/json")
 			// La clave va en una cabecera, no en la URL: así no queda en registros de acceso
@@ -144,8 +154,12 @@ public class ProveedorGemini implements ProveedorIA {
 					+ modelo;
 			case 404 -> "El modelo " + modelo + " no existe o ya no está disponible (revise GEMINI_MODELO)";
 			case 429 -> "Se alcanzó el límite de uso gratuito de la IA. Intente en unos minutos o llene los datos a mano";
-			default -> estado >= 500 ? "El servicio de IA no está disponible en este momento (error " + estado + ")"
-					: "Error " + estado + " del servicio de IA" + (detalle.isEmpty() ? "" : ": " + detalle);
+			default -> {
+				if (estado >= 500) {
+					yield "El servicio de IA no está disponible en este momento (error " + estado + ")";
+				}
+				yield "Error " + estado + " del servicio de IA" + (detalle.isEmpty() ? "" : ": " + detalle);
+			}
 		};
 	}
 

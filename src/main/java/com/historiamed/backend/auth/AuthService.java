@@ -2,6 +2,7 @@ package com.historiamed.backend.auth;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -58,7 +59,8 @@ public class AuthService {
 		this.properties = properties;
 		this.intentos = intentos;
 		this.captcha = captcha;
-		this.hashFicticio = passwordEncoder.encode("password-ficticia-para-tiempo-constante");
+		// Hash de un valor aleatorio: solo sirve para que un usuario inexistente tarde lo mismo que uno real
+		this.hashFicticio = passwordEncoder.encode(UUID.randomUUID().toString());
 	}
 
 	/** Sesión emitida: la respuesta para el cuerpo y el refresh token para la cookie. */
@@ -175,17 +177,17 @@ public class AuthService {
 
 	private void registrarIntentoFallido(Usuario u, Instant ahora) {
 		HistoriaMedProperties.Seguridad seguridad = properties.seguridad();
-		int intentos = u.getIntentosFallidos() + 1;
-		if (intentos >= seguridad.maxIntentosFallidos()) {
+		int fallidos = u.getIntentosFallidos() + 1;
+		if (fallidos >= seguridad.maxIntentosFallidos()) {
 			u.setIntentosFallidos(0);
 			u.setBloqueadoHasta(ahora.plus(Duration.ofMinutes(seguridad.minutosBloqueo())));
 			auditarFallo(u.getId(), u.getUsername(), u.getRol().name(), AccionAuditoria.CUENTA_BLOQUEADA,
-					intentos + " intentos fallidos; bloqueada " + seguridad.minutosBloqueo() + " min");
+					fallidos + " intentos fallidos; bloqueada " + seguridad.minutosBloqueo() + " min");
 		}
 		else {
-			u.setIntentosFallidos(intentos);
+			u.setIntentosFallidos(fallidos);
 			auditarFallo(u.getId(), u.getUsername(), u.getRol().name(), AccionAuditoria.LOGIN_FALLIDO,
-					"Contraseña incorrecta (intento " + intentos + ")");
+					"Contraseña incorrecta (intento " + fallidos + ")");
 		}
 	}
 

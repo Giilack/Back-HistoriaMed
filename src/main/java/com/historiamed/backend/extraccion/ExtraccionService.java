@@ -45,6 +45,9 @@ public class ExtraccionService {
 
 	private static final String RECURSO = "EXTRACCION";
 
+	/** Nombre del campo en los mensajes de validación. */
+	private static final String CAMPO_DESCRIPCION = "descripcion";
+
 	/** Los antecedentes que se pueden elegir a mano; los otros tipos salen de las categorías DIAGNOSTICO y MEDICAMENTO. */
 	private static final Set<TipoAntecedente> TIPOS_ANTECEDENTE = Set.of(TipoAntecedente.PERSONAL,
 			TipoAntecedente.FAMILIAR, TipoAntecedente.QUIRURGICO, TipoAntecedente.OTRO);
@@ -168,7 +171,7 @@ public class ExtraccionService {
 
 	/**
 	 * El médico cierra la revisión: los datos de {@code aceptados} pasan a la historia clínica y el resto queda
-	 * descartado. Todo en una transacción: o se aplican todos o ninguno.
+	 * descartado. En una sola transacción: o se aplican todos o ninguno.
 	 */
 	@Transactional
 	public ExtraccionResponse validar(Long id, Set<Long> aceptados) {
@@ -254,10 +257,10 @@ public class ExtraccionService {
 
 		switch (categoria) {
 			case ALERGIA -> {
-				exigir(descripcion, "descripcion", "Indique la sustancia");
+				exigir(descripcion, CAMPO_DESCRIPCION, "Indique la sustancia");
 				exigir(req.tipoAlergia(), "tipoAlergia", "Indique el tipo de alergia");
 				exigir(req.gravedad(), "gravedad", "Indique la gravedad");
-				maximo(descripcion, MAX_SUSTANCIA, "descripcion");
+				maximo(descripcion, MAX_SUSTANCIA, CAMPO_DESCRIPCION);
 				maximo(detalle, MAX_REACCION, "detalle");
 			}
 			case DIAGNOSTICO -> {
@@ -271,18 +274,18 @@ public class ExtraccionService {
 				descripcion = medicamento.descripcion();
 			}
 			case LABORATORIO -> {
-				exigir(descripcion, "descripcion", "Indique el examen");
+				exigir(descripcion, CAMPO_DESCRIPCION, "Indique el examen");
 				exigir(limpiar(req.valor()), "valor", "Indique el resultado");
-				maximo(descripcion, MAX_EXAMEN, "descripcion");
+				maximo(descripcion, MAX_EXAMEN, CAMPO_DESCRIPCION);
 			}
 			case ANTECEDENTE -> {
-				exigir(descripcion, "descripcion", "Describa el antecedente");
+				exigir(descripcion, CAMPO_DESCRIPCION, "Describa el antecedente");
 				exigir(req.tipoAntecedente(), "tipoAntecedente", "Indique el tipo de antecedente");
 				if (!TIPOS_ANTECEDENTE.contains(req.tipoAntecedente())) {
 					throw invalido("tipoAntecedente", "Elija personal, familiar, quirúrgico u otro");
 				}
 			}
-			case OTRO -> exigir(descripcion, "descripcion", "Escriba la información");
+			case OTRO -> exigir(descripcion, CAMPO_DESCRIPCION, "Escriba la información");
 		}
 
 		item.setCategoria(categoria);

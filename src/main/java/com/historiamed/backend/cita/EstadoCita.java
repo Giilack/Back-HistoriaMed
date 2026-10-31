@@ -1,5 +1,6 @@
 package com.historiamed.backend.cita;
 
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
 
@@ -24,8 +25,8 @@ public enum EstadoCita {
 	NO_SE_PRESENTO;
 
 	/** Estados en los que la cita sigue "viva" (ocupa un horario y un turno). */
-	public static final Set<EstadoCita> ACTIVOS = EnumSet.of(PROGRAMADA, EN_ESPERA_TRIAJE, EN_ESPERA_CONSULTA,
-			EN_CONSULTA);
+	public static final Set<EstadoCita> ACTIVOS = Collections.unmodifiableSet(EnumSet.of(PROGRAMADA, EN_ESPERA_TRIAJE,
+			EN_ESPERA_CONSULTA, EN_CONSULTA));
 
 	public Set<EstadoCita> siguientes() {
 		return switch (this) {

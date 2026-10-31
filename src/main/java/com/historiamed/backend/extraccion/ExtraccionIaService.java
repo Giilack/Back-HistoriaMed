@@ -4,9 +4,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -54,6 +56,12 @@ import tools.jackson.databind.json.JsonMapper;
  */
 @Service
 public class ExtraccionIaService {
+
+	private static final String TIPO = "type";
+
+	private static final String TEXTO = "STRING";
+
+	private static final String OPCIONAL = "nullable";
 
 	private static final Logger log = LoggerFactory.getLogger(ExtraccionIaService.class);
 
@@ -108,7 +116,7 @@ public class ExtraccionIaService {
 	 */
 	@Transactional
 	public ExtraccionResponse solicitar(Long id) {
-		Extraccion e = repository.findById(id).orElseThrow(() -> new RecursoNoEncontradoException("Revisión", id));
+		Extraccion e = buscar(id);
 		if (!proveedor.disponible()) {
 			throw new ReglaNegocioException("La extracción con IA no está configurada en este servidor");
 		}
@@ -147,7 +155,7 @@ public class ExtraccionIaService {
 
 	@Transactional(readOnly = true)
 	public EstadoIa estadoIa(Long id) {
-		Extraccion e = repository.findById(id).orElseThrow(() -> new RecursoNoEncontradoException("Revisión", id));
+		Extraccion e = buscar(id);
 		return new EstadoIa(e.getIaEstado(), e.getIaError(), e.getItems().size());
 	}
 
@@ -168,17 +176,39 @@ public class ExtraccionIaService {
 		}
 	}
 
+	/** Sin el contenido en toString: el documento clínico no debe terminar en un log. */
 	private record Lectura(byte[] contenido, String mimeType, String instrucciones) {
+
+		@Override
+		public boolean equals(Object otro) {
+			return otro instanceof Lectura l && Arrays.equals(contenido, l.contenido)
+					&& Objects.equals(mimeType, l.mimeType) && Objects.equals(instrucciones, l.instrucciones);
+		}
+
+		@Override
+		public int hashCode() {
+			return 31 * Arrays.hashCode(contenido) + Objects.hash(mimeType, instrucciones);
+		}
+
+		@Override
+		public String toString() {
+			return "Lectura[" + mimeType + ", " + contenido.length + " bytes]";
+		}
+
+	}
+
+	private Extraccion buscar(Long id) {
+		return repository.findById(id).orElseThrow(() -> new RecursoNoEncontradoException("Revisión", id));
 	}
 
 	private Lectura leer(Long id) {
-		Extraccion e = repository.findById(id).orElseThrow(() -> new RecursoNoEncontradoException("Revisión", id));
+		Extraccion e = buscar(id);
 		Documento d = e.getDocumento();
 		return new Lectura(documentoService.leerContenido(d), d.getContentType(), instrucciones());
 	}
 
 	private void guardar(Long id, Long usuarioId, List<ItemRequest> datos) {
-		Extraccion e = repository.findById(id).orElseThrow(() -> new RecursoNoEncontradoException("Revisión", id));
+		Extraccion e = buscar(id);
 		if (!e.iaProcesando() || !e.estaPendiente()) {
 			return;
 		}
@@ -293,21 +323,21 @@ public class ExtraccionIaService {
 	private static Map<String, Object> esquema() {
 		Map<String, Object> props = new LinkedHashMap<>();
 		props.put("categoria", enumerado(Categoria.values()));
-		props.put("descripcion", Map.of("type", "STRING"));
+		props.put("descripcion", Map.of(TIPO, TEXTO));
 		props.put("detalle", texto());
 		props.put("fecha", texto());
 		props.put("tipoAlergia", opcional(enumerado(TipoAlergia.values())));
 		props.put("gravedad", opcional(enumerado(GravedadAlergia.values())));
 		props.put("cieCodigo", texto());
-		props.put("medicamentoId", Map.of("type", "INTEGER", "nullable", true));
+		props.put("medicamentoId", Map.of(TIPO, "INTEGER", OPCIONAL, true));
 		props.put("valor", texto());
 		props.put("unidad", texto());
 		props.put("rangoReferencia", texto());
 		props.put("tipoAntecedente", opcional(enumerado(new TipoAntecedente[] { TipoAntecedente.PERSONAL,
 				TipoAntecedente.FAMILIAR, TipoAntecedente.QUIRURGICO, TipoAntecedente.OTRO })));
 		// Obligatorio: es la evidencia que el médico revisa antes de validar (los modelos ligeros lo omiten si es opcional)
-		props.put("fragmentoOrigen", Map.of("type", "STRING"));
-		props.put("pagina", Map.of("type", "INTEGER", "nullable", true));
+		props.put("fragmentoOrigen", Map.of(TIPO, TEXTO));
+		props.put("pagina", Map.of(TIPO, "INTEGER", OPCIONAL, true));
 		Map<String, Object> dato = Map.of("type", "OBJECT", "properties", props, "required",
 				List.of("categoria", "descripcion", "fragmentoOrigen"));
 		return Map.of("type", "OBJECT", "properties", Map.of("datos", Map.of("type", "ARRAY", "items", dato)),
@@ -315,7 +345,7 @@ public class ExtraccionIaService {
 	}
 
 	private static Map<String, Object> texto() {
-		return Map.of("type", "STRING", "nullable", true);
+		return Map.of(TIPO, TEXTO, OPCIONAL, true);
 	}
 
 	private static Map<String, Object> enumerado(Enum<?>[] valores) {
@@ -323,12 +353,12 @@ public class ExtraccionIaService {
 		for (Enum<?> v : valores) {
 			nombres.add(v.name());
 		}
-		return Map.of("type", "STRING", "enum", nombres);
+		return Map.of(TIPO, TEXTO, "enum", nombres);
 	}
 
 	private static Map<String, Object> opcional(Map<String, Object> esquema) {
 		Map<String, Object> copia = new LinkedHashMap<>(esquema);
-		copia.put("nullable", true);
+		copia.put(OPCIONAL, true);
 		return copia;
 	}
 
@@ -336,7 +366,7 @@ public class ExtraccionIaService {
 	// Lo que devuelve la IA
 	// ------------------------------------------------------------------------------------------------------------
 
-	/** Un dato tal como lo devuelve la IA: todo como texto, para no fallar si un campo viene mal formado. */
+	/** Un dato tal como lo devuelve la IA: cada campo como texto, para no fallar si un campo viene mal formado. */
 	record DatoIa(String categoria, String descripcion, String detalle, String fecha, String tipoAlergia,
 			String gravedad, String cieCodigo, Long medicamentoId, String valor, String unidad, String rangoReferencia,
 			String tipoAntecedente, String fragmentoOrigen, Integer pagina) {

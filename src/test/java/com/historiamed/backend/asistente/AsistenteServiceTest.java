@@ -261,8 +261,9 @@ class AsistenteServiceTest {
 	@Test
 	void sinIaConfiguradaNoConsultaNiAudita() {
 		when(ia.disponible()).thenReturn(false);
+		var solicitud = pregunta("¿Tiene alergias?");
 
-		assertThatThrownBy(() -> service.preguntar(PACIENTE, pregunta("¿Tiene alergias?")))
+		assertThatThrownBy(() -> service.preguntar(PACIENTE, solicitud))
 			.isInstanceOf(ErrorIaException.class)
 			.hasMessageContaining("no está disponible");
 		verify(ia, never()).responderJson(anyString(), anyString(), any());
