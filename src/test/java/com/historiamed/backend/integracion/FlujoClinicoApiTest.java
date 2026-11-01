@@ -43,7 +43,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestPropertySource(properties = { "historiamed.demo.habilitada=true", "historiamed.demo.password=" + FlujoClinicoApiTest.CLAVE,
-		"historiamed.almacenamiento.tipo=bd" })
+		"historiamed.almacenamiento.tipo=bd", "historiamed.importacion.pausa-ms=3600000" })
 class FlujoClinicoApiTest {
 
 	static final String CLAVE = "Demo2026prueba";

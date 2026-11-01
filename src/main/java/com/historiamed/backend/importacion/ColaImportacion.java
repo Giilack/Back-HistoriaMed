@@ -1,6 +1,5 @@
 package com.historiamed.backend.importacion;
 
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
@@ -12,6 +11,8 @@ import org.springframework.core.io.Resource;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.historiamed.backend.common.security.CifradoDatos;
@@ -70,8 +71,18 @@ public class ColaImportacion {
 		this.pausaTrasLimiteMs = pausaTrasLimiteMs;
 	}
 
+	/** Se avisa al confirmar la transacción: antes, la cola no vería el documento y se dormiría sin procesarlo. */
 	public void avisar() {
-		hayTrabajo.set(true);
+		if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+			hayTrabajo.set(true);
+			return;
+		}
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCommit() {
+				hayTrabajo.set(true);
+			}
+		});
 	}
 
 	/** Lo que quedó a medias por un reinicio vuelve a la cola. */
@@ -86,24 +97,25 @@ public class ColaImportacion {
 
 	@Scheduled(fixedDelayString = "${historiamed.importacion.pausa-ms:6000}")
 	public void procesarSiguiente() {
-		if (!hayTrabajo.get() || !proveedor.disponible() || System.currentTimeMillis() < noAntesDe) {
+		// El aviso se baja antes de consultar: si llega otro documento durante la consulta, el aviso queda encendido
+		if (!proveedor.disponible() || System.currentTimeMillis() < noAntesDe || !hayTrabajo.getAndSet(false)) {
 			return;
 		}
-		Optional<Trabajo> trabajo = transaccion.execute(s -> tomar());
-		if (trabajo == null || trabajo.isEmpty()) {
-			hayTrabajo.set(false);
-			return;
+		Trabajo trabajo = transaccion.execute(s -> tomar());
+		if (trabajo != null) {
+			hayTrabajo.set(true);
+			procesar(trabajo);
 		}
-		procesar(trabajo.get());
 	}
 
-	private Optional<Trabajo> tomar() {
+	/** El siguiente documento de la cola; null si está vacía. */
+	private Trabajo tomar() {
 		return repository.findFirstByEstadoOrderById(Importacion.Estado.EN_COLA).map(i -> {
 			i.setEstado(Importacion.Estado.PROCESANDO);
 			i.setIntentos(i.getIntentos() + 1);
 			i.setModelo(proveedor.modelo());
 			return new Trabajo(i.getId(), i.getClaveAlmacenamiento(), i.getContentType());
-		});
+		}).orElse(null);
 	}
 
 	private void procesar(Trabajo t) {
