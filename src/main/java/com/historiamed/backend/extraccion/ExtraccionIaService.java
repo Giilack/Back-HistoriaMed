@@ -64,6 +64,14 @@ public class ExtraccionIaService {
 
 	private static final String OPCIONAL = "nullable";
 
+	private static final String OBJETO = "OBJECT";
+
+	private static final String PROPIEDADES = "properties";
+
+	private static final String OBLIGATORIOS = "required";
+
+	private static final String DATOS = "datos";
+
 	private static final Logger log = LoggerFactory.getLogger(ExtraccionIaService.class);
 
 	private static final String RECURSO = "EXTRACCION";
@@ -339,10 +347,10 @@ public class ExtraccionIaService {
 		// Obligatorio: es la evidencia que el médico revisa antes de validar (los modelos ligeros lo omiten si es opcional)
 		props.put("fragmentoOrigen", Map.of(TIPO, TEXTO));
 		props.put("pagina", Map.of(TIPO, "INTEGER", OPCIONAL, true));
-		Map<String, Object> dato = Map.of("type", "OBJECT", "properties", props, "required",
+		Map<String, Object> dato = Map.of("type", OBJETO, PROPIEDADES, props, OBLIGATORIOS,
 				List.of("categoria", "descripcion", "fragmentoOrigen"));
-		return Map.of("type", "OBJECT", "properties", Map.of("datos", Map.of("type", "ARRAY", "items", dato)),
-				"required", List.of("datos"));
+		return Map.of("type", OBJETO, PROPIEDADES, Map.of(DATOS, Map.of("type", "ARRAY", "items", dato)),
+				OBLIGATORIOS, List.of(DATOS));
 	}
 
 	// ------------------------------------------------------------------------------------------------------------
@@ -440,10 +448,10 @@ public class ExtraccionIaService {
 		}
 		Map<String, Object> esquema = new LinkedHashMap<>(esquema());
 		@SuppressWarnings("unchecked")
-		Map<String, Object> propiedades = new LinkedHashMap<>((Map<String, Object>) esquema.get("properties"));
-		propiedades.put("paciente", Map.of(TIPO, "OBJECT", "properties", personales));
-		esquema.put("properties", propiedades);
-		esquema.put("required", List.of("paciente", "datos"));
+		Map<String, Object> propiedades = new LinkedHashMap<>((Map<String, Object>) esquema.get(PROPIEDADES));
+		propiedades.put("paciente", Map.of(TIPO, OBJETO, PROPIEDADES, personales));
+		esquema.put(PROPIEDADES, propiedades);
+		esquema.put(OBLIGATORIOS, List.of("paciente", DATOS));
 		return esquema;
 	}
 

@@ -1,9 +1,7 @@
 package com.historiamed.backend.importacion;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.when;
+import static org.awaitility.Awaitility.await;
 
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
@@ -11,6 +9,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -22,14 +21,17 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import com.historiamed.backend.TestcontainersConfiguration;
+import com.historiamed.backend.ia.ErrorIaException;
 import com.historiamed.backend.ia.LimiteIaException;
 import com.historiamed.backend.ia.ProveedorIA;
 
@@ -38,7 +40,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 /** Importación masiva de PDF con servidor y PostgreSQL reales. La IA es un doble: responde según el nombre del paciente. */
 @Testcontainers(disabledWithoutDocker = true)
-@Import(TestcontainersConfiguration.class)
+@Import({ TestcontainersConfiguration.class, ImportacionApiTest.ConfiguracionIa.class })
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestPropertySource(properties = { "historiamed.demo.habilitada=true", "historiamed.demo.password=" + ImportacionApiTest.CLAVE,
 		"historiamed.almacenamiento.tipo=bd", "historiamed.importacion.pausa-ms=50",
@@ -59,8 +61,8 @@ class ImportacionApiTest {
 	@Autowired
 	private JdbcTemplate jdbc;
 
-	@MockitoBean
-	private ProveedorIA ia;
+	@Autowired
+	private IaDoble ia;
 
 	private String admision;
 
@@ -71,17 +73,63 @@ class ImportacionApiTest {
 	private record Respuesta(int estado, JsonNode cuerpo) {
 	}
 
+	/** La cola llama a la IA desde otro hilo: este doble se puede cambiar mientras tanto, a diferencia de un mock. */
+	static class IaDoble implements ProveedorIA {
+
+		private volatile String respuesta = "{}";
+
+		private final AtomicInteger limitesPendientes = new AtomicInteger();
+
+		private final AtomicInteger erroresPendientes = new AtomicInteger();
+
+		@Override
+		public boolean disponible() {
+			return true;
+		}
+
+		@Override
+		public String modelo() {
+			return "modelo-doble";
+		}
+
+		@Override
+		public String extraerJson(byte[] documento, String mimeType, String instrucciones, Map<String, Object> esquema) {
+			if (limitesPendientes.getAndUpdate(n -> Math.max(0, n - 1)) > 0) {
+				throw new LimiteIaException("Límite de uso");
+			}
+			if (erroresPendientes.getAndUpdate(n -> Math.max(0, n - 1)) > 0) {
+				throw new ErrorIaException("La IA rechazó el contenido");
+			}
+			return respuesta;
+		}
+
+		@Override
+		public String responderJson(String instrucciones, String contenido, Map<String, Object> esquema) {
+			return respuesta;
+		}
+
+	}
+
+	@TestConfiguration(proxyBeanMethods = false)
+	static class ConfiguracionIa {
+
+		@Bean
+		@Primary
+		IaDoble iaDoble() {
+			return new IaDoble();
+		}
+
+	}
+
 	@BeforeEach
 	void preparar() throws Exception {
 		admision = token("admision.demo");
 		triaje = token("triaje.demo");
 		medico = token("dr.diaz");
-		when(ia.disponible()).thenReturn(true);
-		when(ia.modelo()).thenReturn("modelo-doble");
 	}
 
 	private void iaResponde(String dni, String nombres, String apellido) {
-		when(ia.extraerJson(any(), anyString(), anyString(), any())).thenReturn("""
+		ia.respuesta = """
 				{"paciente": {"tipoDocumento": "DNI", "numeroDocumento": "%s", "nombres": "%s", "apellidoPaterno": "%s",
 				  "fechaNacimiento": "1970-02-03", "sexo": "FEMENINO"},
 				 "datos": [
@@ -90,7 +138,7 @@ class ImportacionApiTest {
 				  {"categoria": "ANTECEDENTE", "descripcion": "Apendicectomía en 2010", "tipoAntecedente": "QUIRURGICO",
 				   "fragmentoOrigen": "Apendicectomía 2010"},
 				  {"categoria": "LABORATORIO", "descripcion": "Glucosa", "valor": "96", "unidad": "mg/dL", "fecha": "2026-01-10",
-				   "fragmentoOrigen": "Glucosa 96"}]}""".formatted(dni, nombres, apellido));
+				   "fragmentoOrigen": "Glucosa 96"}]}""".formatted(dni, nombres, apellido);
 	}
 
 	@Test
@@ -190,10 +238,7 @@ class ImportacionApiTest {
 	void limiteDeLaIa() throws Exception {
 		String dni = String.valueOf(DNI.incrementAndGet());
 		iaResponde(dni, "Eva", "Espera");
-		String correcta = ia.extraerJson(new byte[0], "x", "x", Map.of());
-		when(ia.extraerJson(any(), anyString(), anyString(), any()))
-			.thenThrow(new LimiteIaException("Límite de uso"))
-			.thenReturn(correcta);
+		ia.limitesPendientes.set(1);
 
 		long id = subirYEsperar();
 
@@ -205,11 +250,11 @@ class ImportacionApiTest {
 	@DisplayName("CP-39 Alergia sin gravedad en el documento: se registra como severa, con el motivo")
 	void alergiaSinGravedad() throws Exception {
 		String dni = String.valueOf(DNI.incrementAndGet());
-		when(ia.extraerJson(any(), anyString(), anyString(), any())).thenReturn("""
+		ia.respuesta = """
 				{"paciente": {"tipoDocumento": "DNI", "numeroDocumento": "%s", "nombres": "Luz", "apellidoPaterno": "Prudente",
 				  "fechaNacimiento": "1970-02-03", "sexo": "FEMENINO"},
 				 "datos": [{"categoria": "ALERGIA", "descripcion": "Sulfas", "tipoAlergia": "MEDICAMENTO",
-				   "fragmentoOrigen": "Alergias: Sulfas"}]}""".formatted(dni));
+				   "fragmentoOrigen": "Alergias: Sulfas"}]}""".formatted(dni);
 		long id = subirYEsperar();
 
 		long paciente = llamar("POST", "/api/importaciones/" + id + "/aprobacion", aprobacion(dni, "Luz", "Prudente", Set.of(0), false), admision)
@@ -217,6 +262,40 @@ class ImportacionApiTest {
 
 		String alergias = llamar("GET", "/api/pacientes/" + paciente + "/alergias", null, medico).cuerpo().toString();
 		assertThat(alergias).contains("SEVERA").contains("por precaución");
+	}
+
+	@Test
+	@DisplayName("CP-40 Si la IA falla, Admisión ve el error y puede reintentar")
+	void errorYReintento() throws Exception {
+		iaResponde(String.valueOf(DNI.incrementAndGet()), "Sara", "Reintento");
+		ia.erroresPendientes.set(1);
+		long id = json.readTree(subir(pdfUnico()).body()).path("id").asLong();
+		esperarEstado(id, "ERROR");
+
+		assertThat(llamar("GET", "/api/importaciones", null, admision).cuerpo().toString()).contains("La IA rechazó el contenido");
+		assertThat(llamar("GET", "/api/importaciones/" + id, null, admision).estado()).isBetween(400, 499);
+
+		assertThat(llamar("POST", "/api/importaciones/" + id + "/reintento", null, admision).estado()).isEqualTo(200);
+		esperar(id);
+		assertThat(llamar("POST", "/api/importaciones/" + id + "/reintento", null, admision).estado()).isBetween(400, 499);
+	}
+
+	@Test
+	@DisplayName("CP-41 Admisión ve el PDF mientras revisa; al cerrar, ya no")
+	void archivoSoloMientrasRevisa() throws Exception {
+		iaResponde(String.valueOf(DNI.incrementAndGet()), "Vera", "Archivo");
+		long id = subirYEsperar();
+		String ruta = "http://localhost:" + puerto + "/api/importaciones/" + id + "/archivo";
+		HttpRequest pedido = HttpRequest.newBuilder(URI.create(ruta)).header("Authorization", "Bearer " + admision).build();
+
+		HttpResponse<byte[]> abierto = http.send(pedido, HttpResponse.BodyHandlers.ofByteArray());
+		assertThat(abierto.statusCode()).isEqualTo(200);
+		assertThat(new String(abierto.body(), StandardCharsets.US_ASCII)).startsWith("%PDF");
+
+		llamar("POST", "/api/importaciones/" + id + "/rechazo", Map.of("motivo", "No corresponde"), admision);
+
+		assertThat(http.send(pedido, HttpResponse.BodyHandlers.ofByteArray()).statusCode()).isBetween(400, 499);
+		assertThat(llamar("POST", "/api/importaciones/" + id + "/rechazo", Map.of("motivo", "Otra vez"), admision).estado()).isBetween(400, 499);
 	}
 
 	@Test
@@ -251,16 +330,13 @@ class ImportacionApiTest {
 		return id;
 	}
 
-	private void esperar(long id) throws Exception {
-		for (int i = 0; i < 300; i++) {
-			String estado = jdbc.queryForObject("SELECT estado FROM importaciones WHERE id = ?", String.class, id);
-			if ("LISTA".equals(estado) || "ERROR".equals(estado)) {
-				assertThat(estado).isEqualTo("LISTA");
-				return;
-			}
-			Thread.sleep(50);
-		}
-		throw new AssertionError("La importación " + id + " no terminó");
+	private void esperar(long id) {
+		esperarEstado(id, "LISTA");
+	}
+
+	private void esperarEstado(long id, String estado) {
+		await().atMost(Duration.ofSeconds(30)).pollInterval(Duration.ofMillis(50)).until(
+				() -> estado.equals(jdbc.queryForObject("SELECT estado FROM importaciones WHERE id = ?", String.class, id)));
 	}
 
 	private static Map<String, Object> aprobacion(String dni, String nombres, String apellido, Set<Integer> aceptados, boolean confirmar) {
