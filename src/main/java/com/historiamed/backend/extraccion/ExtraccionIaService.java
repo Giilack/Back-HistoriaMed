@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -62,6 +63,14 @@ public class ExtraccionIaService {
 	private static final String TEXTO = "STRING";
 
 	private static final String OPCIONAL = "nullable";
+
+	private static final String OBJETO = "OBJECT";
+
+	private static final String PROPIEDADES = "properties";
+
+	private static final String OBLIGATORIOS = "required";
+
+	private static final String DATOS = "datos";
 
 	private static final Logger log = LoggerFactory.getLogger(ExtraccionIaService.class);
 
@@ -338,10 +347,112 @@ public class ExtraccionIaService {
 		// Obligatorio: es la evidencia que el médico revisa antes de validar (los modelos ligeros lo omiten si es opcional)
 		props.put("fragmentoOrigen", Map.of(TIPO, TEXTO));
 		props.put("pagina", Map.of(TIPO, "INTEGER", OPCIONAL, true));
-		Map<String, Object> dato = Map.of("type", "OBJECT", "properties", props, "required",
+		Map<String, Object> dato = Map.of("type", OBJETO, PROPIEDADES, props, OBLIGATORIOS,
 				List.of("categoria", "descripcion", "fragmentoOrigen"));
-		return Map.of("type", "OBJECT", "properties", Map.of("datos", Map.of("type", "ARRAY", "items", dato)),
-				"required", List.of("datos"));
+		return Map.of("type", OBJETO, PROPIEDADES, Map.of(DATOS, Map.of("type", "ARRAY", "items", dato)),
+				OBLIGATORIOS, List.of(DATOS));
+	}
+
+	// ------------------------------------------------------------------------------------------------------------
+	// Importación de historias: además de los datos clínicos, la IA lee los datos personales
+	// ------------------------------------------------------------------------------------------------------------
+
+	/** Datos personales tal como aparecen en el documento. */
+	public record DatosPersonalesIa(String tipoDocumento, String numeroDocumento, String nombres, String apellidoPaterno,
+			String apellidoMaterno, String fechaNacimiento, String sexo, String telefono, String direccion) {
+	}
+
+	public record PropuestaIa(DatosPersonalesIa paciente, List<ItemRequest> datos) {
+	}
+
+	private record RespuestaImportacion(DatosPersonalesIa paciente, List<DatoIa> datos) {
+	}
+
+	/** Lee un documento sin paciente. No guarda nada: la propuesta espera la decisión de Admisión. */
+	public PropuestaIa proponerImportacion(byte[] contenido, String mimeType) {
+		String respuesta = proveedor.extraerJson(contenido, mimeType, instrucciones() + INSTRUCCIONES_IMPORTACION, esquemaImportacion());
+		RespuestaImportacion r;
+		try {
+			r = json.readValue(respuesta, RespuestaImportacion.class);
+		}
+		catch (RuntimeException ex) {
+			throw new ErrorIaException("La respuesta de la IA no tiene el formato esperado", ex);
+		}
+		List<DatoIa> datos = r.datos() == null ? List.of() : r.datos();
+		return new PropuestaIa(r.paciente(), datos.stream().limit(MAXIMO_DATOS).map(ExtraccionIaService::comoItem)
+			.filter(i -> i != null).map(ExtraccionIaService::conGravedadPrudente).toList());
+	}
+
+	/**
+	 * La gravedad de una alergia es obligatoria, pero muchas historias no la dicen. Sin médico que lo revise, no se deja
+	 * que la IA la suponga: se registra como severa, la opción segura, y queda escrito el motivo.
+	 */
+	static ItemRequest conGravedadPrudente(ItemRequest d) {
+		if (d.categoria() != Categoria.ALERGIA || d.gravedad() != null) {
+			return d;
+		}
+		String detalle = recortar((d.detalle() == null ? "" : d.detalle() + ". ") + "Gravedad no indicada en el documento: registrada como severa por precaución", 300);
+		return new ItemRequest(d.categoria(), d.descripcion(), detalle, d.fecha(), d.tipoAlergia(), GravedadAlergia.SEVERA,
+				d.cieCodigo(), d.medicamentoId(), d.valor(), d.unidad(), d.rangoReferencia(), d.tipoAntecedente(),
+				d.fragmentoOrigen(), d.pagina());
+	}
+
+	/** Registra lo aceptado con las mismas reglas de la revisión. Devuelve cuántos datos pasaron a la historia. */
+	@Transactional
+	public int registrarImportada(Documento documento, List<ItemRequest> datos, Set<Integer> aceptados, String modelo) {
+		Usuario quien = usuarioService.obtener(UsuarioActual.requerido().id());
+		Extraccion e = new Extraccion();
+		e.setDocumento(documento);
+		e.setPaciente(documento.getPaciente());
+		e.setOrigen(Extraccion.Origen.IA);
+		e.setCreadoPor(quien);
+		e.setIaEstado(Extraccion.EstadoIa.COMPLETADA);
+		e.setIaModelo(modelo);
+		List<ExtraccionItem> elegidos = new ArrayList<>();
+		for (int i = 0; i < datos.size(); i++) {
+			ExtraccionItem item = new ExtraccionItem();
+			item.setExtraccion(e);
+			item.setCreadoPor(quien);
+			item.setPropuestoPorIa(true);
+			if (aplicar(item, datos.get(i))) {
+				e.getItems().add(item);
+				if (aceptados.contains(i)) {
+					elegidos.add(item);
+				}
+			}
+		}
+		if (e.getItems().isEmpty()) {
+			return 0;
+		}
+		repository.saveAndFlush(e);
+		extraccionService.validar(e.getId(), elegidos.stream().map(ExtraccionItem::getId).collect(Collectors.toSet()));
+		return elegidos.size();
+	}
+
+	private static final String INSTRUCCIONES_IMPORTACION = """
+
+
+			Este documento es de una historia anterior y todavía no se sabe de qué paciente es. Excepción a la regla 2: en el
+			objeto "paciente" copia los datos personales tal como están escritos; deja vacío lo que no aparezca. Usa la fecha
+			de nacimiento en formato AAAA-MM-DD. tipoDocumento es DNI, CARNET_EXTRANJERIA o PASAPORTE; sexo es FEMENINO o
+			MASCULINO. Los datos personales van solo en ese objeto, nunca en la lista de datos clínicos.
+			En una alergia, gravedad va vacía salvo que el documento la indique de forma expresa: nunca la supongas.
+			Registra cada consulta anterior como un dato DIAGNOSTICO con su fecha, y los medicamentos indicados como
+			MEDICAMENTO.""";
+
+	private static Map<String, Object> esquemaImportacion() {
+		Map<String, Object> personales = new LinkedHashMap<>();
+		for (String campo : List.of("tipoDocumento", "numeroDocumento", "nombres", "apellidoPaterno", "apellidoMaterno",
+				"fechaNacimiento", "sexo", "telefono", "direccion")) {
+			personales.put(campo, texto());
+		}
+		Map<String, Object> esquema = new LinkedHashMap<>(esquema());
+		@SuppressWarnings("unchecked")
+		Map<String, Object> propiedades = new LinkedHashMap<>((Map<String, Object>) esquema.get(PROPIEDADES));
+		propiedades.put("paciente", Map.of(TIPO, OBJETO, PROPIEDADES, personales));
+		esquema.put(PROPIEDADES, propiedades);
+		esquema.put(OBLIGATORIOS, List.of("paciente", DATOS));
+		return esquema;
 	}
 
 	private static Map<String, Object> texto() {

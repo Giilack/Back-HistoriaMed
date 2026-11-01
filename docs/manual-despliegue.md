@@ -184,6 +184,12 @@ El administrador es `admin`, con la contraseña inicial del paso 4; el sistema o
 
 Guardar capturas de cada paso en `docs/despliegue/evidencias/`.
 
+### 9.0 Importación masiva de historias
+
+Admisión entra a **Importar historias**, sube varios PDF y aprueba cada uno. No requiere configuración aparte: usa la misma
+`GEMINI_API_KEY`. Opcionales: `historiamed.importacion.pausa-ms` (6000, pausa entre documentos). En la capa gratuita
+de Neon (0,5 GB) cada lote de PDF ocupa espacio: el sistema admite hasta 100 documentos sin aprobar.
+
 ### 9.1 Validación automatizada
 
 Después de cada despliegue se ejecutan estas pruebas contra la nube. **Solo leen datos ficticios**: los casos que

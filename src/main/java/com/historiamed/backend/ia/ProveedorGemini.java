@@ -120,7 +120,8 @@ public class ProveedorGemini implements ProveedorIA {
 			throw new ErrorIaException("Se interrumpió la consulta a la IA", e);
 		}
 		if (respuesta.statusCode() != 200) {
-			throw new ErrorIaException(mensajeDeError(respuesta.statusCode(), respuesta.body()));
+			String mensaje = mensajeDeError(respuesta.statusCode(), respuesta.body());
+			throw respuesta.statusCode() == 429 ? new LimiteIaException(mensaje) : new ErrorIaException(mensaje);
 		}
 		return textoDeRespuesta(json.readTree(respuesta.body()));
 	}

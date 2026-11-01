@@ -12,6 +12,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -30,6 +31,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import com.historiamed.backend.TestcontainersConfiguration;
+import com.historiamed.backend.common.util.Tiempo;
 import com.historiamed.backend.ia.ProveedorIA;
 
 import tools.jackson.databind.JsonNode;
@@ -43,7 +45,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestPropertySource(properties = { "historiamed.demo.habilitada=true", "historiamed.demo.password=" + FlujoClinicoApiTest.CLAVE,
-		"historiamed.almacenamiento.tipo=bd" })
+		"historiamed.almacenamiento.tipo=bd", "historiamed.importacion.pausa-ms=3600000" })
 class FlujoClinicoApiTest {
 
 	static final String CLAVE = "Demo2026prueba";
@@ -171,7 +173,7 @@ class FlujoClinicoApiTest {
 	}
 
 	@Test
-	@DisplayName("CP-19 El DNI y el teléfono quedan cifrados en la base")
+	@DisplayName("CP-22 El DNI y el teléfono quedan cifrados en la base")
 	void datosSensiblesCifrados() throws Exception {
 		String dni = String.valueOf(DNI.incrementAndGet());
 		long id = llamar("POST", "/api/pacientes", paciente(dni, "Luz", "Cifrada"), admision).cuerpo().path("id").asLong();
@@ -185,7 +187,7 @@ class FlujoClinicoApiTest {
 	// --- Flujo clínico ----------------------------------------------------------------------------------------------
 
 	@Test
-	@DisplayName("CP-12, CP-15 y CP-16 Flujo completo: llegada, triaje, atención y cierre inmutable")
+	@DisplayName("CP-12, CP-15 y CP-17 Flujo completo: llegada, triaje, atención y cierre inmutable")
 	void flujoCompleto() throws Exception {
 		long paciente = registrarPaciente("Elena", "Flujo");
 		Respuesta cita = llamar("POST", "/api/citas/sin-cita",
@@ -209,10 +211,12 @@ class FlujoClinicoApiTest {
 		assertThat(llamar("PUT", "/api/atenciones/" + atencionId, completa, medico).estado()).isBetween(400, 499);
 		assertThat(llamar("GET", "/api/atenciones/" + atencionId, null, medico).cuerpo().path("estado").asString())
 			.isEqualTo("CERRADA");
+		assertThatThrownBy(() -> jdbc.update("UPDATE atenciones SET anamnesis = 'alterada' WHERE id = ?", atencionId))
+			.isInstanceOf(DataAccessException.class);
 	}
 
 	@Test
-	@DisplayName("CP-14 Recetar con alergia registrada exige confirmación y justificación")
+	@DisplayName("CP-16 Recetar con alergia registrada exige confirmación y justificación")
 	void alergiaAlRecetar() throws Exception {
 		long paciente = registrarPaciente("Marta", "Alergica");
 		assertThat(llamar("POST", "/api/pacientes/" + paciente + "/alergias", Map.of("tipo", "MEDICAMENTO", "sustancia",
@@ -235,7 +239,7 @@ class FlujoClinicoApiTest {
 	}
 
 	@Test
-	@DisplayName("CP-17 La auditoría no se puede modificar")
+	@DisplayName("CP-18 La auditoría no se puede modificar")
 	void auditoriaInmutable() throws Exception {
 		llamar("GET", "/api/pacientes?q=quispe", null, medico);
 
@@ -244,7 +248,7 @@ class FlujoClinicoApiTest {
 	}
 
 	@Test
-	@DisplayName("CP-23 Consultar la historia queda en la auditoría")
+	@DisplayName("CP-29 Consultar la historia queda en la auditoría")
 	void accesoClinicoAuditado() throws Exception {
 		long paciente = registrarPaciente("Ivan", "Auditado");
 		long antes = contarAuditoria("VER");
@@ -255,7 +259,7 @@ class FlujoClinicoApiTest {
 	}
 
 	@Test
-	@DisplayName("CP-24 Reportes: el administrador solo ve cifras, nunca datos de pacientes")
+	@DisplayName("CP-30 Reportes: el administrador solo ve cifras, nunca datos de pacientes")
 	void reportesSinDatosPersonales() throws Exception {
 		Respuesta r = llamar("GET", "/api/reportes/resumen", null, admin);
 
@@ -263,10 +267,98 @@ class FlujoClinicoApiTest {
 		assertThat(r.cuerpo().toString()).doesNotContain("Mamani").doesNotContain("45678912");
 	}
 
+	// --- Casos del plan que solo tenían prueba unitaria ------------------------------------------------------------
+
+	@Test
+	@DisplayName("CP-03 Bloqueo de la cuenta tras 5 intentos fallidos")
+	void bloqueoTrasCincoIntentos() throws Exception {
+		for (int i = 0; i < 5; i++) {
+			llamar("POST", "/api/auth/login", Map.of("username", "dra.torres", "password", "Incorrecta123"), null);
+		}
+
+		Respuesta r = llamar("POST", "/api/auth/login", Map.of("username", "dra.torres", "password", CLAVE), null);
+
+		assertThat(r.estado()).isBetween(400, 499);
+		assertThat(contarAuditoria("CUENTA_BLOQUEADA")).isPositive();
+	}
+
+	@Test
+	@DisplayName("CP-04 Con contraseña temporal la API queda bloqueada hasta cambiarla")
+	void cambioObligatorioDeContrasena() throws Exception {
+		Respuesta creado = llamar("POST", "/api/usuarios", Map.of("username", "nuevo.medico", "nombres", "Nuevo", "apellidos",
+				"Medico", "dni", "90000077", "rol", "MEDICO", "cmp", "077777"), admin);
+		assertThat(creado.estado()).isEqualTo(201);
+		String temporal = creado.cuerpo().path("passwordTemporal").asString();
+
+		Respuesta sesion = llamar("POST", "/api/auth/login", Map.of("username", "nuevo.medico", "password", temporal), null);
+		String token = sesion.cuerpo().path("accessToken").asString();
+
+		assertThat(llamar("GET", "/api/pacientes", null, token).estado()).isEqualTo(403);
+	}
+
+	@Test
+	@DisplayName("CP-13 y CP-14 Alerta crítica de saturación y prioridad menor sin justificar")
+	void alertaDeTriaje() throws Exception {
+		long paciente = registrarPaciente("Nora", "Saturacion");
+		long citaId = llamar("POST", "/api/citas/sin-cita",
+				Map.of("pacienteId", paciente, "medicoId", medicoId, "consultorioId", consultorioId, "motivo", "Disnea"),
+				admision).cuerpo().path("id").asLong();
+		Map<String, Object> signos = new java.util.HashMap<>(triaje());
+		signos.put("saturacion", 88);
+
+		Respuesta evaluacion = llamar("POST", "/api/citas/" + citaId + "/triaje/evaluacion", signos, triaje);
+
+		assertThat(evaluacion.estado()).isEqualTo(200);
+		assertThat(evaluacion.cuerpo().path("prioridadSugerida").asString()).isEqualTo("URGENTE");
+		assertThat(evaluacion.cuerpo().path("alertas")).isNotEmpty();
+
+		signos.put("prioridad", "NORMAL");
+		assertThat(llamar("POST", "/api/citas/" + citaId + "/triaje", signos, triaje).estado()).isBetween(400, 499);
+	}
+
+	@Test
+	@DisplayName("CP-20 Lo que valida el médico pasa a la historia clínica")
+	void validacionDeUnDocumento() throws Exception {
+		long paciente = registrarPaciente("Alba", "Validacion");
+		HttpResponse<String> pdf = subir(paciente, "informe.pdf", "%PDF-1.4 ficticio".getBytes(StandardCharsets.US_ASCII));
+		long documento = json.readTree(pdf.body()).path("id").asLong();
+		long revision = llamar("POST", "/api/documentos/" + documento + "/extraccion", null, medico).cuerpo().path("id").asLong();
+		JsonNode items = llamar("POST", "/api/extracciones/" + revision + "/items", Map.of("categoria", "ANTECEDENTE", "descripcion",
+				"Apendicectomía en 2010", "tipoAntecedente", "QUIRURGICO"), medico).cuerpo().path("items");
+
+		Respuesta r = llamar("POST", "/api/extracciones/" + revision + "/validacion",
+				Map.of("aceptados", List.of(items.get(0).path("id").asLong())), medico);
+
+		assertThat(r.estado()).isEqualTo(200);
+		assertThat(llamar("GET", "/api/pacientes/" + paciente + "/antecedentes", null, medico).cuerpo().toString())
+			.contains("Apendicectomía");
+	}
+
+	@Test
+	@DisplayName("CP-21 Descanso médico y control quedan en la atención cerrada")
+	void descansoYControl() throws Exception {
+		long paciente = registrarPaciente("Ines", "Descanso");
+		long citaId = llamar("POST", "/api/citas/sin-cita",
+				Map.of("pacienteId", paciente, "medicoId", medicoId, "consultorioId", consultorioId, "motivo", "Fiebre"),
+				admision).cuerpo().path("id").asLong();
+		llamar("POST", "/api/citas/" + citaId + "/triaje", triaje(), triaje);
+		long atencionId = llamar("POST", "/api/citas/" + citaId + "/atencion", null, medico).cuerpo().path("id").asLong();
+		LocalDate hoy = Tiempo.hoy();
+		Map<String, Object> cuerpo = new java.util.HashMap<>(atencion(List.of(Map.of("codigo", "J02.9", "tipo", "PRESUNTIVO", "principal", true))));
+		cuerpo.put("descanso", Map.of("dias", 3, "desde", hoy.toString()));
+		cuerpo.put("control", Map.of("fecha", hoy.plusDays(7).toString(), "nota", "Control de evolución"));
+
+		Respuesta r = llamar("POST", "/api/atenciones/" + atencionId + "/cierre", cuerpo, medico);
+
+		assertThat(r.estado()).isEqualTo(200);
+		assertThat(r.cuerpo().path("descanso").path("dias").asInt()).isEqualTo(3);
+		assertThat(r.cuerpo().path("control").path("fecha").asString()).isEqualTo(hoy.plusDays(7).toString());
+	}
+
 	// --- Documentos y asistente: la IA se reemplaza por un doble para no gastar la cuota ni depender de la red ---------
 
 	@Test
-	@DisplayName("CP-18 Un ejecutable renombrado a .pdf se rechaza y un PDF se guarda")
+	@DisplayName("CP-19 Un ejecutable renombrado a .pdf se rechaza y un PDF se guarda")
 	void formatoDeArchivo() throws Exception {
 		long paciente = registrarPaciente("Rosa", "Documento");
 
@@ -285,7 +377,7 @@ class FlujoClinicoApiTest {
 	}
 
 	@Test
-	@DisplayName("CP-25 El asistente cita la fuente, descarta citas inventadas y alerta alergias")
+	@DisplayName("CP-31 El asistente cita la fuente, descarta citas inventadas y alerta alergias")
 	void asistenteClinico() throws Exception {
 		long paciente = registrarPaciente("Teresa", "Asistente");
 		llamar("POST", "/api/pacientes/" + paciente + "/alergias", Map.of("tipo", "MEDICAMENTO", "sustancia", "Penicilina",

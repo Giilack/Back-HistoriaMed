@@ -165,6 +165,25 @@ public class DocumentoService {
 		}
 	}
 
+	/** Registra en la ficha un archivo que ya está guardado: el de una importación aprobada. */
+	@Transactional
+	public Documento registrarImportado(Paciente paciente, String nombre, String contentType, long tamanio, String clave,
+			String huella, String descripcion) {
+		Documento d = new Documento();
+		d.setPaciente(paciente);
+		d.setTipo(TipoDocumentoClinico.OTRO);
+		d.setDescripcion(descripcion);
+		d.setNombreOriginal(nombre);
+		d.setContentType(contentType);
+		d.setTamanioBytes(tamanio);
+		d.setSha256(huella);
+		d.setSubidoPor(usuarioService.obtener(UsuarioActual.requerido().id()));
+		d.setClaveAlmacenamiento(clave);
+		repository.save(d);
+		auditoria.registrarSobrePaciente(AccionAuditoria.CREAR, RECURSO, d.getId(), paciente.getId(), "Importado: " + nombre);
+		return d;
+	}
+
 	/** El documento, para otros módulos (por ejemplo, la revisión de sus datos). No se audita como consulta. */
 	@Transactional(readOnly = true)
 	public Documento obtener(Long id) {
@@ -181,7 +200,7 @@ public class DocumentoService {
 	}
 
 	/** Solo el nombre (sin rutas), recortado; si no hay nombre, uno genérico con la extensión real. */
-	static String nombreSeguro(String original, FormatoArchivo formato) {
+	public static String nombreSeguro(String original, FormatoArchivo formato) {
 		// No se usa Path.of: en Windows falla con caracteres como '"' que un navegador sí puede enviar
 		String nombre = original == null ? "" : original.substring(original.replace('\\', '/').lastIndexOf('/') + 1);
 		nombre = nombre.replaceAll("[\\p{Cntrl}\"<>|:*?]", "").trim();
@@ -191,7 +210,7 @@ public class DocumentoService {
 		return nombre.length() > MAXIMO_NOMBRE ? nombre.substring(nombre.length() - MAXIMO_NOMBRE) : nombre;
 	}
 
-	static String sha256(byte[] contenido) {
+	public static String sha256(byte[] contenido) {
 		try {
 			return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(contenido));
 		}
