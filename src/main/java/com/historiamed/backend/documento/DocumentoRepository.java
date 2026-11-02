@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface DocumentoRepository extends JpaRepository<Documento, Long> {
 
+	long countByPacienteIdAndEstadoNot(Long pacienteId, Documento.Estado estado);
+
 	@EntityGraph(attributePaths = "subidoPor")
 	List<Documento> findByPacienteIdOrderByCreadoEnDesc(Long pacienteId);
 

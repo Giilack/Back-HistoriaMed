@@ -84,4 +84,10 @@ public class LaboratorioService {
 		return ResultadoLaboratorioResponse.de(r);
 	}
 
+	/** Inactiva los resultados que salieron de un documento anulado. */
+	@Transactional
+	public void inactivarDeDocumento(Long documentoId, String motivo) {
+		repository.findByDocumentoIdAndActivoTrue(documentoId).forEach(r -> inactivar(r.getId(), motivo));
+	}
+
 }

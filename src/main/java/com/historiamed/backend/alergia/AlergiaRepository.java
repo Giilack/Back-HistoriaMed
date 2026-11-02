@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AlergiaRepository extends JpaRepository<Alergia, Long> {
 
+	List<Alergia> findByDocumentoIdAndActivaTrue(Long documentoId);
+
 	/** Activas primero; dentro de cada grupo, las más recientes primero. */
 	@EntityGraph(attributePaths = "registradoPor")
 	List<Alergia> findByPacienteIdOrderByActivaDescCreadoEnDesc(Long pacienteId);

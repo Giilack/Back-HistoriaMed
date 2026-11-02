@@ -85,4 +85,15 @@ public class AlergiaService {
 		return AlergiaResponse.de(a);
 	}
 
+	@Transactional
+	public void vincularDocumento(Long id, Long documentoId) {
+		repository.findById(id).ifPresent(a -> a.setDocumentoId(documentoId));
+	}
+
+	/** Inactiva las alergias que salieron de un documento anulado. */
+	@Transactional
+	public void inactivarDeDocumento(Long documentoId, String motivo) {
+		repository.findByDocumentoIdAndActivaTrue(documentoId).forEach(a -> inactivar(a.getId(), motivo));
+	}
+
 }

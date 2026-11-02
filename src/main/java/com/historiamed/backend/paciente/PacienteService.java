@@ -104,6 +104,31 @@ public class PacienteService {
 		return repository.findByTipoDocumentoAndNumeroDocumentoHuella(tipo, cifrado.huella(numero.trim().toUpperCase(Locale.ROOT)));
 	}
 
+	/** Posibles duplicados: mismo apellido paterno y fecha de nacimiento. */
+	@Transactional(readOnly = true)
+	public java.util.List<Paciente> parecidos(LocalDate fechaNacimiento, String apellidoPaterno) {
+		if (fechaNacimiento == null || apellidoPaterno == null) {
+			return java.util.List.of();
+		}
+		return repository.findByFechaNacimientoAndActivoTrue(fechaNacimiento)
+			.stream()
+			.filter(p -> comparable(p.getApellidoPaterno()).equals(comparable(apellidoPaterno)))
+			.toList();
+	}
+
+	/** Reactiva a un paciente inactivo por una importación anulada, si llega su historia correcta. */
+	@Transactional
+	public void reactivar(Paciente p) {
+		p.setActivo(true);
+	}
+
+	/** Inactiva a un paciente creado por una importación anulada. No se borra: su número de historia queda ocupado. */
+	@Transactional
+	public void inactivarImportado(Long id) {
+		obtener(id).setActivo(false);
+		auditoria.registrarSobrePaciente(AccionAuditoria.DESACTIVAR, RECURSO, id, id, "Importación anulada");
+	}
+
 	/** Compara sin tildes ni mayúsculas: el apellido debe coincidir y el primer nombre aparecer en el registrado. */
 	public boolean mismaPersona(Paciente p, String nombres, String apellidoPaterno) {
 		String primerNombre = comparable(nombres).split(" ")[0];
