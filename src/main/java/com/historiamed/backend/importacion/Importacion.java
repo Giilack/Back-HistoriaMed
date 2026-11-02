@@ -30,7 +30,11 @@ public class Importacion extends EntidadBase {
 		LISTA,
 		ERROR,
 		APROBADA,
-		RECHAZADA
+		RECHAZADA,
+		/** Admisión la quitó antes de aprobar: el archivo se borró. */
+		ELIMINADA,
+		/** Se aprobó por error: lo registrado quedó inactivo, con su motivo. */
+		ANULADA
 	}
 
 	@Column(name = "nombre_original", nullable = false, updatable = false)
@@ -45,7 +49,8 @@ public class Importacion extends EntidadBase {
 	@Column(nullable = false, updatable = false)
 	private String sha256;
 
-	@Column(name = "clave_almacenamiento", nullable = false, updatable = false)
+	/** Solo en archivos subidos antes de la v1.6.0; los nuevos están en {@link ImportacionContenido} hasta aprobarse. */
+	@Column(name = "clave_almacenamiento")
 	private String claveAlmacenamiento;
 
 	@Enumerated(EnumType.STRING)
@@ -69,6 +74,9 @@ public class Importacion extends EntidadBase {
 	@Column(name = "documento_id")
 	private Long documentoId;
 
+	@Column(name = "paciente_nuevo", nullable = false)
+	private boolean pacienteNuevo;
+
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "subido_por", nullable = false, updatable = false)
 	private Usuario subidoPor;
@@ -84,7 +92,7 @@ public class Importacion extends EntidadBase {
 	private String motivoRechazo;
 
 	public boolean abierta() {
-		return estado != Estado.APROBADA && estado != Estado.RECHAZADA;
+		return estado == Estado.EN_COLA || estado == Estado.PROCESANDO || estado == Estado.LISTA || estado == Estado.ERROR;
 	}
 
 }

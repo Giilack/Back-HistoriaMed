@@ -91,4 +91,10 @@ public class AntecedenteService {
 		return AntecedenteResponse.de(a);
 	}
 
+	/** Inactiva los antecedentes que salieron de un documento anulado. */
+	@Transactional
+	public void inactivarDeDocumento(Long documentoId, String motivo) {
+		repository.findByDocumentoIdAndActivoTrue(documentoId).forEach(a -> inactivar(a.getId(), motivo));
+	}
+
 }

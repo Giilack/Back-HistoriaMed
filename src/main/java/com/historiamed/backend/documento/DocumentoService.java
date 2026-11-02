@@ -219,4 +219,18 @@ public class DocumentoService {
 		}
 	}
 
+	/** Anula el documento de una importación equivocada, sin importar quién de Admisión la aprobó. */
+	@Transactional
+	public void anularImportado(Long id, String motivo) {
+		Documento d = obtener(id);
+		d.setEstado(Documento.Estado.ANULADO);
+		d.setMotivoAnulacion(motivo);
+		auditoria.registrarSobrePaciente(AccionAuditoria.DESACTIVAR, RECURSO, id, d.getPaciente().getId(), motivo);
+	}
+
+	@Transactional(readOnly = true)
+	public long contarVigentes(Long pacienteId) {
+		return repository.countByPacienteIdAndEstadoNot(pacienteId, Documento.Estado.ANULADO);
+	}
+
 }

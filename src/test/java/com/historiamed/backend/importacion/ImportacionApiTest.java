@@ -28,6 +28,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.util.AopTestUtils;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import com.historiamed.backend.TestcontainersConfiguration;
@@ -63,6 +65,9 @@ class ImportacionApiTest {
 
 	@Autowired
 	private IaDoble ia;
+
+	@Autowired
+	private ImportacionService importaciones;
 
 	private String admision;
 
@@ -153,7 +158,7 @@ class ImportacionApiTest {
 		assertThat(detalle.path("datos")).hasSize(3);
 		assertThat(detalle.path("existente").isNull()).isTrue();
 
-		Respuesta r = llamar("POST", "/api/importaciones/" + id + "/aprobacion", aprobacion(dni, "Julia", "Nueva", Set.of(0, 1, 2), false), admision);
+		Respuesta r = llamar("POST", "/api/importaciones/" + id + "/aprobacion", aprobacion(id, dni, "Julia", "Nueva", Set.of(0, 1, 2), false), admision);
 
 		assertThat(r.estado()).isEqualTo(200);
 		assertThat(r.cuerpo().path("pacienteNuevo").asBoolean()).isTrue();
@@ -177,7 +182,7 @@ class ImportacionApiTest {
 		assertThat(existente.path("id").asLong()).isEqualTo(paciente);
 		assertThat(existente.path("coincideNombre").asBoolean()).isTrue();
 
-		Respuesta r = llamar("POST", "/api/importaciones/" + id + "/aprobacion", aprobacion(dni, "MARTA", "ANTIGUA", Set.of(1), false), admision);
+		Respuesta r = llamar("POST", "/api/importaciones/" + id + "/aprobacion", aprobacion(id, dni, "MARTA", "ANTIGUA", Set.of(1), false), admision);
 
 		assertThat(r.cuerpo().path("pacienteNuevo").asBoolean()).isFalse();
 		assertThat(r.cuerpo().path("pacienteId").asLong()).isEqualTo(paciente);
@@ -194,11 +199,11 @@ class ImportacionApiTest {
 		iaResponde(dni, "Otra", "Persona");
 		long id = subirYEsperar();
 
-		Respuesta sinConfirmar = llamar("POST", "/api/importaciones/" + id + "/aprobacion", aprobacion(dni, "Otra", "Persona", Set.of(0), false), admision);
+		Respuesta sinConfirmar = llamar("POST", "/api/importaciones/" + id + "/aprobacion", aprobacion(id, dni, "Otra", "Persona", Set.of(0), false), admision);
 		assertThat(sinConfirmar.estado()).isBetween(400, 499);
 		assertThat(sinConfirmar.cuerpo().toString()).contains("COINCIDENCIA_DUDOSA");
 
-		Respuesta confirmada = llamar("POST", "/api/importaciones/" + id + "/aprobacion", aprobacion(dni, "Otra", "Persona", Set.of(0), true), admision);
+		Respuesta confirmada = llamar("POST", "/api/importaciones/" + id + "/aprobacion", aprobacion(id, dni, "Otra", "Persona", Set.of(0), true), admision);
 		assertThat(confirmada.estado()).isEqualTo(200);
 	}
 
@@ -257,7 +262,7 @@ class ImportacionApiTest {
 				   "fragmentoOrigen": "Alergias: Sulfas"}]}""".formatted(dni);
 		long id = subirYEsperar();
 
-		long paciente = llamar("POST", "/api/importaciones/" + id + "/aprobacion", aprobacion(dni, "Luz", "Prudente", Set.of(0), false), admision)
+		long paciente = llamar("POST", "/api/importaciones/" + id + "/aprobacion", aprobacion(id, dni, "Luz", "Prudente", Set.of(0), false), admision)
 			.cuerpo().path("pacienteId").asLong();
 
 		String alergias = llamar("GET", "/api/pacientes/" + paciente + "/alergias", null, medico).cuerpo().toString();
@@ -296,6 +301,200 @@ class ImportacionApiTest {
 
 		assertThat(http.send(pedido, HttpResponse.BodyHandlers.ofByteArray()).statusCode()).isBetween(400, 499);
 		assertThat(llamar("POST", "/api/importaciones/" + id + "/rechazo", Map.of("motivo", "Otra vez"), admision).estado()).isBetween(400, 499);
+	}
+
+	@Test
+	@DisplayName("CP-42 Admisión corrige, quita y agrega datos antes de aprobar")
+	void edicionDeDatos() throws Exception {
+		String dni = String.valueOf(DNI.incrementAndGet());
+		iaResponde(dni, "Nora", "Edita");
+		long id = subirYEsperar();
+		JsonNode propuestos = llamar("GET", "/api/importaciones/" + id, null, admision).cuerpo().path("datos");
+		Map<String, Object> laboratorio = new java.util.HashMap<>(json.convertValue(propuestos.get(2), Map.class));
+		laboratorio.put("valor", "101");
+		Map<String, Object> nuevo = Map.of("categoria", "ANTECEDENTE", "descripcion", "Hipertensión desde 2015", "tipoAntecedente", "PERSONAL");
+		Map<String, Object> cuerpo = Map.of("paciente", datos(dni, "Nora", "Edita"), "datos",
+				List.of(Map.of("origen", 0, "dato", propuestos.get(0)), Map.of("origen", 2, "dato", laboratorio), Map.of("dato", nuevo)));
+
+		Respuesta r = llamar("POST", "/api/importaciones/" + id + "/aprobacion", cuerpo, admision);
+
+		assertThat(r.estado()).isEqualTo(200);
+		assertThat(r.cuerpo().path("datosRegistrados").asInt()).isEqualTo(3);
+		assertThat(r.cuerpo().path("datosCorregidos").asInt()).isEqualTo(2);
+		long paciente = r.cuerpo().path("pacienteId").asLong();
+		assertThat(llamar("GET", "/api/pacientes/" + paciente + "/resultados-laboratorio", null, medico).cuerpo().toString()).contains("101");
+		assertThat(llamar("GET", "/api/pacientes/" + paciente + "/antecedentes", null, medico).cuerpo().toString())
+			.contains("Hipertensión").doesNotContain("Apendicectomía");
+	}
+
+	@Test
+	@DisplayName("CP-43 Un dato editado inválido se rechaza con mensaje y no se registra nada")
+	void datoInvalido() throws Exception {
+		String dni = String.valueOf(DNI.incrementAndGet());
+		iaResponde(dni, "Ines", "Invalida");
+		long id = subirYEsperar();
+		Map<String, Object> sinValor = Map.of("categoria", "LABORATORIO", "descripcion", "Colesterol");
+		Map<String, Object> cuerpo = Map.of("paciente", datos(dni, "Ines", "Invalida"), "datos", List.of(Map.of("dato", sinValor)));
+
+		Respuesta r = llamar("POST", "/api/importaciones/" + id + "/aprobacion", cuerpo, admision);
+
+		assertThat(r.estado()).isBetween(400, 499);
+		assertThat(r.cuerpo().toString()).contains("Colesterol");
+		assertThat(llamar("GET", "/api/pacientes?q=" + dni, null, admision).cuerpo().path("contenido")).isEmpty();
+		assertThat(llamar("GET", "/api/importaciones/" + id, null, admision).estado()).isEqualTo(200);
+	}
+
+	@Test
+	@DisplayName("CP-44 Eliminar antes de aprobar borra el archivo y permite volver a subirlo")
+	void eliminarAntesDeAprobar() throws Exception {
+		iaResponde(String.valueOf(DNI.incrementAndGet()), "Luz", "Elimina");
+		byte[] pdf = pdfUnico();
+		long id = json.readTree(subir(pdf).body()).path("id").asLong();
+		esperar(id);
+
+		assertThat(llamar("DELETE", "/api/importaciones/" + id, null, admision).estado()).isEqualTo(200);
+
+		assertThat(jdbc.queryForObject("SELECT count(*) FROM importacion_contenidos WHERE importacion_id = ?", Long.class, id)).isZero();
+		assertThat(jdbc.queryForObject("SELECT datos_cifrados FROM importaciones WHERE id = ?", String.class, id)).isNull();
+		assertThat(subir(pdf).statusCode()).isEqualTo(201);
+		assertThat(llamar("DELETE", "/api/importaciones/" + id, null, admision).estado()).isBetween(400, 499);
+	}
+
+	@Test
+	@DisplayName("CP-45 Anular una aprobación inactiva lo registrado sin borrarlo; el paciente puede volver")
+	void anularAprobacion() throws Exception {
+		String dni = String.valueOf(DNI.incrementAndGet());
+		iaResponde(dni, "Ada", "Anulada");
+		byte[] pdf = pdfUnico();
+		long id = json.readTree(subir(pdf).body()).path("id").asLong();
+		esperar(id);
+		long paciente = llamar("POST", "/api/importaciones/" + id + "/aprobacion", aprobacion(id, dni, "Ada", "Anulada", Set.of(0, 1, 2), false), admision)
+			.cuerpo().path("pacienteId").asLong();
+
+		Respuesta r = llamar("POST", "/api/importaciones/" + id + "/anulacion", Map.of("motivo", "Era de otro paciente"), admision);
+
+		assertThat(r.estado()).isEqualTo(200);
+		assertThat(llamar("GET", "/api/pacientes/" + paciente + "/alergias", null, medico).cuerpo().get(0).path("activa").asBoolean()).isFalse();
+		assertThat(llamar("GET", "/api/pacientes/" + paciente + "/antecedentes", null, medico).cuerpo().get(0).path("activo").asBoolean()).isFalse();
+		assertThat(llamar("GET", "/api/pacientes/" + paciente + "/resultados-laboratorio", null, medico).cuerpo().get(0).path("activo").asBoolean()).isFalse();
+		assertThat(llamar("GET", "/api/pacientes/" + paciente + "/documentos", null, medico).cuerpo().get(0).path("estado").asString()).isEqualTo("ANULADO");
+		assertThat(llamar("GET", "/api/pacientes?q=" + dni, null, admision).cuerpo().path("contenido")).isEmpty();
+		assertThat(llamar("POST", "/api/importaciones/" + id + "/anulacion", Map.of("motivo", "Otra vez"), admision).estado()).isBetween(400, 499);
+
+		long otra = json.readTree(subir(pdf).body()).path("id").asLong();
+		esperar(otra);
+		Respuesta segunda = llamar("POST", "/api/importaciones/" + otra + "/aprobacion", aprobacion(otra, dni, "Ada", "Anulada", Set.of(1), false), admision);
+		assertThat(segunda.cuerpo().path("pacienteId").asLong()).isEqualTo(paciente);
+		assertThat(llamar("GET", "/api/pacientes?q=" + dni, null, admision).cuerpo().path("contenido")).hasSize(1);
+	}
+
+	@Test
+	@DisplayName("CP-46 Anular no inactiva a un paciente que ya existía")
+	void anularEnPacienteExistente() throws Exception {
+		String dni = String.valueOf(DNI.incrementAndGet());
+		long paciente = registrarPaciente(dni, "Vera", "Previa");
+		iaResponde(dni, "Vera", "Previa");
+		long id = subirYEsperar();
+		llamar("POST", "/api/importaciones/" + id + "/aprobacion", aprobacion(id, dni, "Vera", "Previa", Set.of(1), false), admision);
+
+		llamar("POST", "/api/importaciones/" + id + "/anulacion", Map.of("motivo", "Documento equivocado"), admision);
+
+		assertThat(llamar("GET", "/api/pacientes?q=" + dni, null, admision).cuerpo().path("contenido").get(0).path("id").asLong()).isEqualTo(paciente);
+	}
+
+	@Test
+	@DisplayName("CP-47 Documento con varias personas: se detecta y exige confirmar")
+	void variosPacientes() throws Exception {
+		String dni = String.valueOf(DNI.incrementAndGet());
+		ia.respuesta = """
+				{"paciente": {"numeroDocumento": "%s", "nombres": "Una", "apellidoPaterno": "Dos", "fechaNacimiento": "1970-02-03"},
+				 "datos": [], "variosPacientes": true}""".formatted(dni);
+		long id = subirYEsperar();
+		assertThat(llamar("GET", "/api/importaciones/" + id, null, admision).cuerpo().path("variosPacientes").asBoolean()).isTrue();
+
+		Map<String, Object> cuerpo = new java.util.HashMap<>(aprobacion(id, dni, "Una", "Dos", Set.of(), false));
+		Respuesta r = llamar("POST", "/api/importaciones/" + id + "/aprobacion", cuerpo, admision);
+		assertThat(r.cuerpo().toString()).contains("VARIOS_PACIENTES");
+
+		cuerpo.put("confirmarUnPaciente", true);
+		assertThat(llamar("POST", "/api/importaciones/" + id + "/aprobacion", cuerpo, admision).estado()).isEqualTo(200);
+	}
+
+	@Test
+	@DisplayName("CP-48 Sin DNI, un paciente parecido se avisa y se puede elegir")
+	void posibleDuplicado() throws Exception {
+		long paciente = registrarPaciente(String.valueOf(DNI.incrementAndGet()), "Rosa", "Parecida");
+		ia.respuesta = """
+				{"paciente": {"tipoDocumento": "DNI", "nombres": "Rosa", "apellidoPaterno": "PARECIDA", "fechaNacimiento": "1970-02-03", "sexo": "FEMENINO"},
+				 "datos": []}""";
+		long id = subirYEsperar();
+		JsonNode detalle = llamar("GET", "/api/importaciones/" + id, null, admision).cuerpo();
+		assertThat(detalle.path("parecidos").get(0).path("id").asLong()).isEqualTo(paciente);
+
+		Map<String, Object> sinDocumento = new java.util.HashMap<>(datos(null, "Rosa", "PARECIDA"));
+		sinDocumento.put("tipoDocumento", "SIN_DOCUMENTO");
+		Map<String, Object> cuerpo = new java.util.HashMap<>(Map.of("paciente", sinDocumento, "datos", List.of()));
+		assertThat(llamar("POST", "/api/importaciones/" + id + "/aprobacion", cuerpo, admision).cuerpo().toString()).contains("POSIBLE_DUPLICADO");
+
+		cuerpo.put("pacienteId", paciente);
+		cuerpo.put("confirmarCoincidencia", true);
+		assertThat(llamar("POST", "/api/importaciones/" + id + "/aprobacion", cuerpo, admision).cuerpo().path("pacienteId").asLong()).isEqualTo(paciente);
+	}
+
+	@Test
+	@DisplayName("CP-49 Dos aprobaciones a la vez: solo una registra")
+	void aprobacionSimultanea() throws Exception {
+		String dni = String.valueOf(DNI.incrementAndGet());
+		iaResponde(dni, "Eva", "Doble");
+		long id = subirYEsperar();
+		Map<String, Object> cuerpo = aprobacion(id, dni, "Eva", "Doble", Set.of(0, 1, 2), false);
+		var hilos = java.util.concurrent.Executors.newFixedThreadPool(2);
+		java.util.concurrent.Callable<Integer> tarea = () -> llamar("POST", "/api/importaciones/" + id + "/aprobacion", cuerpo, admision).estado();
+
+		var resultados = hilos.invokeAll(List.of(tarea, tarea));
+		hilos.shutdown();
+
+		long aprobadas = 0;
+		for (var r : resultados) {
+			aprobadas += r.get() == 200 ? 1 : 0;
+		}
+		assertThat(aprobadas).isEqualTo(1);
+		assertThat(llamar("GET", "/api/pacientes?q=" + dni, null, admision).cuerpo().path("contenido")).hasSize(1);
+		long paciente = llamar("GET", "/api/pacientes?q=" + dni, null, admision).cuerpo().path("contenido").get(0).path("id").asLong();
+		assertThat(llamar("GET", "/api/pacientes/" + paciente + "/alergias", null, medico).cuerpo()).hasSize(1);
+	}
+
+	@Test
+	@DisplayName("CP-50 Al llegar al tope de espacio no se aceptan más archivos")
+	void topeDeEspacio() throws Exception {
+		Object servicio = AopTestUtils.getTargetObject(importaciones);
+		Object cuota = ReflectionTestUtils.getField(servicio, "cuotaMb");
+		ReflectionTestUtils.setField(servicio, "cuotaMb", 1L);
+		try {
+			HttpResponse<String> r = subir(pdfUnico());
+
+			assertThat(r.statusCode()).isBetween(400, 499);
+			assertThat(r.body()).contains("ESPACIO_AGOTADO");
+		}
+		finally {
+			ReflectionTestUtils.setField(servicio, "cuotaMb", cuota);
+		}
+		JsonNode espacio = llamar("GET", "/api/importaciones/espacio", null, admision).cuerpo();
+		assertThat(espacio.path("usadoMb").asLong()).isPositive();
+		assertThat(espacio.path("cuotaMb").asLong()).isEqualTo(450);
+	}
+
+	@Test
+	@DisplayName("CP-51 Quien atiende ve el aviso de documentos importados, sin aprobar nada")
+	void avisoAlMedico() throws Exception {
+		String dni = String.valueOf(DNI.incrementAndGet());
+		iaResponde(dni, "Ana", "Aviso");
+		long id = subirYEsperar();
+		long paciente = llamar("POST", "/api/importaciones/" + id + "/aprobacion", aprobacion(id, dni, "Ana", "Aviso", Set.of(1), false), admision)
+			.cuerpo().path("pacienteId").asLong();
+
+		assertThat(llamar("GET", "/api/importaciones/del-paciente/" + paciente, null, medico).cuerpo().asLong()).isEqualTo(1);
+		assertThat(llamar("GET", "/api/importaciones/del-paciente/" + paciente, null, admision).estado()).isEqualTo(403);
 	}
 
 	@Test
@@ -339,13 +538,22 @@ class ImportacionApiTest {
 				() -> estado.equals(jdbc.queryForObject("SELECT estado FROM importaciones WHERE id = ?", String.class, id)));
 	}
 
-	private static Map<String, Object> aprobacion(String dni, String nombres, String apellido, Set<Integer> aceptados, boolean confirmar) {
-		return Map.of("paciente", datos(dni, nombres, apellido), "aceptados", aceptados, "confirmarCoincidencia", confirmar);
+	/** Aprueba sin cambios los datos propuestos en esas posiciones. */
+	private Map<String, Object> aprobacion(long id, String dni, String nombres, String apellido, Set<Integer> aceptados, boolean confirmar)
+			throws Exception {
+		JsonNode propuestos = llamar("GET", "/api/importaciones/" + id, null, admision).cuerpo().path("datos");
+		List<Map<String, Object>> elegidos = new java.util.ArrayList<>();
+		for (int i : aceptados) {
+			elegidos.add(Map.of("origen", i, "dato", propuestos.get(i)));
+		}
+		return Map.of("paciente", datos(dni, nombres, apellido), "datos", elegidos, "confirmarCoincidencia", confirmar);
 	}
 
 	private static Map<String, Object> datos(String dni, String nombres, String apellido) {
-		return Map.of("tipoDocumento", "DNI", "numeroDocumento", dni, "nombres", nombres, "apellidoPaterno", apellido,
-				"fechaNacimiento", "1970-02-03", "sexo", "FEMENINO");
+		Map<String, Object> d = new java.util.HashMap<>(Map.of("tipoDocumento", "DNI", "nombres", nombres, "apellidoPaterno", apellido,
+				"fechaNacimiento", "1970-02-03", "sexo", "FEMENINO"));
+		d.put("numeroDocumento", dni);
+		return d;
 	}
 
 	private long registrarPaciente(String dni, String nombres, String apellido) throws Exception {

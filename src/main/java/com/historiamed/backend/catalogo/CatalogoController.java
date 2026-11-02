@@ -16,7 +16,7 @@ import lombok.RequiredArgsConstructor;
  */
 @RestController
 @RequestMapping("/api")
-@PreAuthorize("hasAnyRole('TRIAJE', 'MEDICO')")
+@PreAuthorize("hasAnyRole('ADMISION', 'TRIAJE', 'MEDICO')")
 @RequiredArgsConstructor
 public class CatalogoController {
 

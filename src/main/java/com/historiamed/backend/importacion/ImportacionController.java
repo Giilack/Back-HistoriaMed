@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,6 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.historiamed.backend.importacion.dto.AprobacionRequest;
 import com.historiamed.backend.importacion.dto.AprobacionResponse;
+import com.historiamed.backend.importacion.dto.EspacioResponse;
 import com.historiamed.backend.importacion.dto.ImportacionDetalle;
 import com.historiamed.backend.importacion.dto.ImportacionResponse;
 
@@ -79,6 +81,28 @@ public class ImportacionController {
 	@PostMapping("/{id}/rechazo")
 	public ImportacionResponse rechazar(@PathVariable Long id, @Valid @RequestBody RechazoRequest req) {
 		return service.rechazar(id, req.motivo());
+	}
+
+	@DeleteMapping("/{id}")
+	public ImportacionResponse eliminar(@PathVariable Long id) {
+		return service.eliminar(id);
+	}
+
+	@PostMapping("/{id}/anulacion")
+	public ImportacionResponse anular(@PathVariable Long id, @Valid @RequestBody RechazoRequest req) {
+		return service.anular(id, req.motivo());
+	}
+
+	@GetMapping("/espacio")
+	public EspacioResponse espacio() {
+		return service.espacio();
+	}
+
+	/** Aviso para quien atiende: cuántos documentos del paciente se importaron sin revisión médica. */
+	@GetMapping("/del-paciente/{pacienteId}")
+	@PreAuthorize("hasAnyRole('TRIAJE', 'MEDICO')")
+	public long delPaciente(@PathVariable Long pacienteId) {
+		return service.contarDelPaciente(pacienteId);
 	}
 
 	@PostMapping("/{id}/reintento")
