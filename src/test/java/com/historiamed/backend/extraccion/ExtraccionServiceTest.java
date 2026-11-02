@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -30,6 +31,7 @@ import com.historiamed.backend.alergia.AlergiaService;
 import com.historiamed.backend.alergia.GravedadAlergia;
 import com.historiamed.backend.alergia.TipoAlergia;
 import com.historiamed.backend.alergia.dto.AlergiaRequest;
+import com.historiamed.backend.alergia.dto.AlergiaResponse;
 import com.historiamed.backend.antecedente.AntecedenteService;
 import com.historiamed.backend.antecedente.TipoAntecedente;
 import com.historiamed.backend.auditoria.AuditoriaService;
@@ -231,6 +233,7 @@ class ExtraccionServiceTest {
 	@Test
 	void validarPasaLosAceptadosALaHistoriaYDescartaElResto() {
 		Extraccion e = revision();
+		when(alergiaService.registrar(any(), any())).thenReturn(mock(AlergiaResponse.class));
 		ExtraccionItem alergia = item(e, 1L, Categoria.ALERGIA, "Penicilina", TRIAJE);
 		alergia.setTipoAlergia(TipoAlergia.MEDICAMENTO);
 		alergia.setGravedad(GravedadAlergia.SEVERA);
