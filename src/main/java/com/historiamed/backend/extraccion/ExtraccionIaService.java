@@ -9,7 +9,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -46,6 +45,8 @@ import com.historiamed.backend.ia.ProveedorIA;
 import com.historiamed.backend.usuario.Usuario;
 import com.historiamed.backend.usuario.UsuarioService;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -78,6 +79,9 @@ public class ExtraccionIaService {
 
 	/** Tope de datos que se aceptan de una respuesta, por si la IA devuelve una lista desmedida. */
 	static final int MAXIMO_DATOS = 60;
+
+	/** Una historia antigua trae más datos que un documento suelto. */
+	static final int MAXIMO_DATOS_IMPORTACION = 150;
 
 	private final ExtraccionRepository repository;
 
@@ -362,10 +366,18 @@ public class ExtraccionIaService {
 			String apellidoMaterno, String fechaNacimiento, String sexo, String telefono, String direccion) {
 	}
 
-	public record PropuestaIa(DatosPersonalesIa paciente, List<ItemRequest> datos) {
+	public record PropuestaIa(DatosPersonalesIa paciente, List<ItemRequest> datos, Boolean variosPacientes,
+			Integer datosOmitidos) {
 	}
 
-	private record RespuestaImportacion(DatosPersonalesIa paciente, List<DatoIa> datos) {
+	private record RespuestaImportacion(DatosPersonalesIa paciente, List<DatoIa> datos, Boolean variosPacientes) {
+	}
+
+	/** @param origen posición en la propuesta de la IA; null si Admisión lo agregó */
+	public record DatoAprobado(Integer origen, @NotNull @Valid ItemRequest dato) {
+	}
+
+	public record ResultadoImportacion(int aplicados, int corregidos) {
 	}
 
 	/** Lee un documento sin paciente. No guarda nada: la propuesta espera la decisión de Admisión. */
@@ -379,8 +391,9 @@ public class ExtraccionIaService {
 			throw new ErrorIaException("La respuesta de la IA no tiene el formato esperado", ex);
 		}
 		List<DatoIa> datos = r.datos() == null ? List.of() : r.datos();
-		return new PropuestaIa(r.paciente(), datos.stream().limit(MAXIMO_DATOS).map(ExtraccionIaService::comoItem)
-			.filter(i -> i != null).map(ExtraccionIaService::conGravedadPrudente).toList());
+		return new PropuestaIa(r.paciente(), datos.stream().limit(MAXIMO_DATOS_IMPORTACION).map(ExtraccionIaService::comoItem)
+			.filter(i -> i != null).map(ExtraccionIaService::conGravedadPrudente).toList(), r.variosPacientes(),
+				Math.max(0, datos.size() - MAXIMO_DATOS_IMPORTACION));
 	}
 
 	/**
@@ -397,9 +410,16 @@ public class ExtraccionIaService {
 				d.fragmentoOrigen(), d.pagina());
 	}
 
-	/** Registra lo aceptado con las mismas reglas de la revisión. Devuelve cuántos datos pasaron a la historia. */
+	/**
+	 * Registra lo que Admisión dejó tras revisar, con las mismas reglas que al llenar a mano: un dato inválido se rechaza
+	 * para que lo corrija. La otra información pasa como antecedente: en una historia antigua no debe perderse.
+	 */
 	@Transactional
-	public int registrarImportada(Documento documento, List<ItemRequest> datos, Set<Integer> aceptados, String modelo) {
+	public ResultadoImportacion registrarImportada(Documento documento, List<ItemRequest> propuestos, List<DatoAprobado> aprobados,
+			String modelo) {
+		if (aprobados.isEmpty()) {
+			return new ResultadoImportacion(0, 0);
+		}
 		Usuario quien = usuarioService.obtener(UsuarioActual.requerido().id());
 		Extraccion e = new Extraccion();
 		e.setDocumento(documento);
@@ -408,25 +428,35 @@ public class ExtraccionIaService {
 		e.setCreadoPor(quien);
 		e.setIaEstado(Extraccion.EstadoIa.COMPLETADA);
 		e.setIaModelo(modelo);
-		List<ExtraccionItem> elegidos = new ArrayList<>();
-		for (int i = 0; i < datos.size(); i++) {
+		int corregidos = 0;
+		for (DatoAprobado a : aprobados) {
+			boolean propuesto = a.origen() != null && a.origen() >= 0 && a.origen() < propuestos.size();
+			boolean igual = propuesto && propuestos.get(a.origen()).equals(a.dato());
 			ExtraccionItem item = new ExtraccionItem();
 			item.setExtraccion(e);
 			item.setCreadoPor(quien);
-			item.setPropuestoPorIa(true);
-			if (aplicar(item, datos.get(i))) {
-				e.getItems().add(item);
-				if (aceptados.contains(i)) {
-					elegidos.add(item);
-				}
+			item.setPropuestoPorIa(propuesto);
+			item.setCorregido(!igual);
+			corregidos += igual ? 0 : 1;
+			try {
+				extraccionService.aplicarDatos(item, comoAntecedente(a.dato()));
 			}
-		}
-		if (e.getItems().isEmpty()) {
-			return 0;
+			catch (ReglaNegocioException | RecursoNoEncontradoException ex) {
+				throw new ReglaNegocioException("DATO_INVALIDO", "Revise «" + comoTexto(a.dato()) + "»: " + ex.getMessage(), Map.of());
+			}
+			e.getItems().add(item);
 		}
 		repository.saveAndFlush(e);
-		extraccionService.validar(e.getId(), elegidos.stream().map(ExtraccionItem::getId).collect(Collectors.toSet()));
-		return elegidos.size();
+		extraccionService.validar(e.getId(), e.getItems().stream().map(ExtraccionItem::getId).collect(Collectors.toSet()));
+		return new ResultadoImportacion(aprobados.size(), corregidos);
+	}
+
+	private static ItemRequest comoAntecedente(ItemRequest d) {
+		if (d.categoria() != Categoria.OTRO) {
+			return d;
+		}
+		return new ItemRequest(Categoria.ANTECEDENTE, d.descripcion(), d.detalle(), d.fecha(), null, null, null, null, null, null,
+				null, TipoAntecedente.OTRO, d.fragmentoOrigen(), d.pagina());
 	}
 
 	private static final String INSTRUCCIONES_IMPORTACION = """
@@ -437,6 +467,7 @@ public class ExtraccionIaService {
 			de nacimiento en formato AAAA-MM-DD. tipoDocumento es DNI, CARNET_EXTRANJERIA o PASAPORTE; sexo es FEMENINO o
 			MASCULINO. Los datos personales van solo en ese objeto, nunca en la lista de datos clínicos.
 			En una alergia, gravedad va vacía salvo que el documento la indique de forma expresa: nunca la supongas.
+			variosPacientes es true si el documento trae datos de más de una persona como paciente.
 			Registra cada consulta anterior como un dato DIAGNOSTICO con su fecha, y los medicamentos indicados como
 			MEDICAMENTO.""";
 
@@ -450,6 +481,7 @@ public class ExtraccionIaService {
 		@SuppressWarnings("unchecked")
 		Map<String, Object> propiedades = new LinkedHashMap<>((Map<String, Object>) esquema.get(PROPIEDADES));
 		propiedades.put("paciente", Map.of(TIPO, OBJETO, PROPIEDADES, personales));
+		propiedades.put("variosPacientes", Map.of(TIPO, "BOOLEAN"));
 		esquema.put(PROPIEDADES, propiedades);
 		esquema.put(OBLIGATORIOS, List.of("paciente", DATOS));
 		return esquema;

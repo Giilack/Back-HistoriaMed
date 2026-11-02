@@ -12,6 +12,8 @@ public interface PacienteRepository extends JpaRepository<Paciente, Long>, JpaSp
 	/** El número de documento se guarda cifrado: se busca por su huella ({@code CifradoDatos.huella}). */
 	Optional<Paciente> findByTipoDocumentoAndNumeroDocumentoHuella(TipoDocumento tipo, String huella);
 
+	java.util.List<Paciente> findByFechaNacimientoAndActivoTrue(java.time.LocalDate fecha);
+
 	@Query(value = "SELECT nextval('seq_numero_hc')", nativeQuery = true)
 	long siguienteNumeroHc();
 

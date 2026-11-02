@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface ResultadoLaboratorioRepository extends JpaRepository<ResultadoLaboratorio, Long> {
 
+	List<ResultadoLaboratorio> findByDocumentoIdAndActivoTrue(Long documentoId);
+
 	/** Activos primero; los más recientes primero (por fecha del examen y, si falta, por registro). */
 	@EntityGraph(attributePaths = "registradoPor")
 	@Query("""

@@ -45,6 +45,8 @@ public interface CitaRepository extends JpaRepository<Cita, Long>, JpaSpecificat
 	@Query("select coalesce(max(c.numeroTurno), 0) from Cita c where c.fecha = :fecha and c.consultorio.id = :consultorioId")
 	int ultimoTurno(LocalDate fecha, Long consultorioId);
 
+	boolean existsByPacienteId(Long pacienteId);
+
 	// Indicadores para los reportes: JPQL con parámetros enlazados, nunca texto concatenado
 
 	@Query("""

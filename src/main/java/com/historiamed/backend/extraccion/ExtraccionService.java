@@ -316,8 +316,9 @@ public class ExtraccionService {
 					.stream()
 					.anyMatch(a -> a.getSustancia().equalsIgnoreCase(item.getDescripcion()));
 				if (!yaRegistrada) {
-					alergiaService.registrar(pacienteId, new AlergiaRequest(item.getTipoAlergia(),
+					var alergia = alergiaService.registrar(pacienteId, new AlergiaRequest(item.getTipoAlergia(),
 							item.getDescripcion(), item.getDetalle(), item.getGravedad()));
+					alergiaService.vincularDocumento(alergia.id(), documento.getId());
 				}
 			}
 			case DIAGNOSTICO -> antecedenteService.registrar(pacienteId,

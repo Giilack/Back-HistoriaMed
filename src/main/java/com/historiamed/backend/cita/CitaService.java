@@ -99,6 +99,11 @@ public class CitaService {
 	 * inasistencias no cuentan. Sirve para saber si un control sugerido ya se agendó.
 	 */
 	@Transactional(readOnly = true)
+	public boolean tieneCitas(Long pacienteId) {
+		return repository.existsByPacienteId(pacienteId);
+	}
+
+	@Transactional(readOnly = true)
 	public boolean tieneCitaPosterior(Long pacienteId, LocalDate despuesDe) {
 		Set<EstadoCita> estados = EnumSet.copyOf(EstadoCita.ACTIVOS);
 		estados.add(EstadoCita.ATENDIDO);

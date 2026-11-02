@@ -39,6 +39,8 @@ public class ColaImportacion {
 
 	private final ImportacionRepository repository;
 
+	private final ImportacionContenidoRepository contenidos;
+
 	private final AlmacenamientoService almacenamiento;
 
 	private final ExtraccionIaService extraccionIa;
@@ -57,11 +59,13 @@ public class ColaImportacion {
 
 	private volatile long noAntesDe;
 
-	public ColaImportacion(ImportacionRepository repository, AlmacenamientoService almacenamiento,
+	public ColaImportacion(ImportacionRepository repository, ImportacionContenidoRepository contenidos,
+			AlmacenamientoService almacenamiento,
 			ExtraccionIaService extraccionIa, ProveedorIA proveedor, CifradoDatos cifrado, JsonMapper json,
 			PlatformTransactionManager transacciones,
 			@Value("${historiamed.importacion.pausa-tras-limite-ms:60000}") long pausaTrasLimiteMs) {
 		this.repository = repository;
+		this.contenidos = contenidos;
 		this.almacenamiento = almacenamiento;
 		this.extraccionIa = extraccionIa;
 		this.proveedor = proveedor;
@@ -120,7 +124,10 @@ public class ColaImportacion {
 
 	private void procesar(Trabajo t) {
 		try {
-			byte[] contenido = leer(almacenamiento.obtener(t.clave()));
+			byte[] contenido = contenidos.findById(t.id()).map(ImportacionContenido::getContenido).orElse(null);
+			if (contenido == null) {
+				contenido = leer(almacenamiento.obtener(t.clave()));
+			}
 			PropuestaIa propuesta = extraccionIa.proponerImportacion(contenido, t.contentType());
 			String cifrados = cifrado.cifrar(json.writeValueAsString(propuesta));
 			actualizar(t.id(), i -> {
@@ -154,7 +161,9 @@ public class ColaImportacion {
 	}
 
 	private void actualizar(Long id, java.util.function.Consumer<Importacion> cambio) {
-		transaccion.executeWithoutResult(s -> repository.findById(id).ifPresent(cambio));
+		transaccion.executeWithoutResult(s -> repository.findById(id)
+			.filter(i -> i.getEstado() == Importacion.Estado.PROCESANDO)
+			.ifPresent(cambio));
 	}
 
 	private static byte[] leer(Resource recurso) throws java.io.IOException {

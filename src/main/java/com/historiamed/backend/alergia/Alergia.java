@@ -44,6 +44,10 @@ public class Alergia extends EntidadBase {
 	@Column(nullable = false)
 	private boolean activa = true;
 
+	/** Documento del que salió, si vino de una revisión. */
+	@Column(name = "documento_id")
+	private Long documentoId;
+
 	@Column(name = "motivo_inactivacion")
 	private String motivoInactivacion;
 
