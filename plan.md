@@ -269,6 +269,11 @@ Subida (ADMISION, TRIAJE o MEDICO)
 - Lo aprobado se registra con las reglas de la revisión (5.5). El documento queda en la ficha con el aviso «Aprobado por
   Admisión, sin revisión médica». Las consultas antiguas pasan como antecedentes: no se crean atenciones, porque una
   atención la firma un médico del establecimiento.
+- **Revisión:** Admisión compara con el PDF y puede corregir, quitar o agregar datos. El PDF no se edita: es la evidencia original. El sistema distingue lo que propuso la IA de lo que corrigió Admisión.
+- **Eliminar y anular:** antes de aprobar, el archivo se borra de verdad y libera espacio (vive en `importacion_contenidos`, no en la tabla inmutable `archivos`). Después de aprobar no se borra nada: Admisión **anula con motivo**, lo registrado queda inactivo y el documento anulado. Si el paciente nació de esa importación y no tiene otra actividad, se inactiva; si llega su historia correcta, se reactiva.
+- **Sin mezclar ni duplicar:** con el mismo documento y otro nombre, o con un paciente de igual apellido y fecha de nacimiento, Admisión debe decidir. Si la IA detecta varias personas en un archivo, debe subirlas por separado o confirmar. Dos personas no pueden aprobar el mismo documento a la vez.
+- **Sin revisión del médico:** en historias antiguas el médico no aprueba documentos (decisión del 01/11/2026). Solo ve un aviso informativo de que parte de la historia es importada. Lo que la IA no pudo clasificar pasa como antecedente, para no perderlo.
+- **Espacio:** tope de 450 MB (`historiamed.importacion.cuota-mb`), bajo los 512 MB gratuitos de Neon. Al llegar, no se aceptan más archivos: el servicio deja de recibir, no cobra. Máximo 150 datos por documento; si hay más, se avisa para agregarlos a mano.
 - **Triaje** sigue pudiendo subir y extraer con IA en la ficha, sin aprobar: el médico da el visto bueno (5.5).
 - **Condición:** con la capa gratuita de Gemini solo se usan datos ficticios (P6).
 

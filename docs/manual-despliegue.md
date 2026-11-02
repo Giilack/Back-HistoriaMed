@@ -188,7 +188,8 @@ Guardar capturas de cada paso en `docs/despliegue/evidencias/`.
 
 Admisión entra a **Importar historias**, sube varios PDF y aprueba cada uno. No requiere configuración aparte: usa la misma
 `GEMINI_API_KEY`. Opcionales: `historiamed.importacion.pausa-ms` (6000, pausa entre documentos). En la capa gratuita
-de Neon (0,5 GB) cada lote de PDF ocupa espacio: el sistema admite hasta 100 documentos sin aprobar.
+de Neon (0,5 GB) cada lote de PDF ocupa espacio: el sistema admite hasta 100 documentos sin aprobar y deja de aceptar
+archivos al llegar a `historiamed.importacion.cuota-mb` (450 MB). Eliminar documentos sin aprobar libera ese espacio.
 
 ### 9.1 Validación automatizada
 
