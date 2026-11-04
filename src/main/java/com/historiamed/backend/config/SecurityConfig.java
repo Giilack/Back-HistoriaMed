@@ -57,7 +57,9 @@ public class SecurityConfig {
 						HttpStatus.UNAUTHORIZED.value(), "NO_AUTENTICADO", "Token ausente, inválido o expirado"))
 				.accessDeniedHandler((req, res, ex) -> escritorError.escribir(req, res, HttpStatus.FORBIDDEN.value(),
 						"ACCESO_DENEGADO", "No tiene permisos para esta operación")))
-			.addFilterAfter(new CambioPasswordPendienteFilter(escritorError), BearerTokenAuthenticationFilter.class);
+			.addFilterAfter(new CambioPasswordPendienteFilter(escritorError), BearerTokenAuthenticationFilter.class)
+			// Como máximo 3 inicios de sesión a la vez; el resto espera hasta 5 s o recibe 503 (protege la memoria)
+			.addFilterBefore(new LimiteLoginFilter(escritorError, 3, 5000), BearerTokenAuthenticationFilter.class);
 		return http.build();
 	}
 
@@ -89,7 +91,8 @@ public class SecurityConfig {
 		DelegatingPasswordEncoder codificador = new DelegatingPasswordEncoder(ID_ARGON2,
 				Map.of(ID_ARGON2, argon2, "bcrypt", bcrypt));
 		codificador.setDefaultPasswordEncoderForMatches(bcrypt);
-		return codificador;
+		// Como máximo 3 hashes a la vez (3 × 19 MiB): protege la memoria de la instancia gratuita
+		return new PasswordEncoderLimitado(codificador, 3);
 	}
 
 	private static final String ID_ARGON2 = "argon2";
