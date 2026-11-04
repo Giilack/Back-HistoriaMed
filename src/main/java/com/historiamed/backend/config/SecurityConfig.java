@@ -58,8 +58,8 @@ public class SecurityConfig {
 				.accessDeniedHandler((req, res, ex) -> escritorError.escribir(req, res, HttpStatus.FORBIDDEN.value(),
 						"ACCESO_DENEGADO", "No tiene permisos para esta operación")))
 			.addFilterAfter(new CambioPasswordPendienteFilter(escritorError), BearerTokenAuthenticationFilter.class)
-			// Como máximo 3 inicios de sesión a la vez; el resto espera hasta 5 s o recibe 503 (protege la memoria)
-			.addFilterBefore(new LimiteLoginFilter(escritorError, 3, 5000), BearerTokenAuthenticationFilter.class);
+			// Como máximo 3 inicios de sesión a la vez; el resto espera hasta 15 s o recibe 503 (protege la memoria)
+			.addFilterBefore(new LimiteLoginFilter(escritorError, 3, 15000), BearerTokenAuthenticationFilter.class);
 		return http.build();
 	}
 

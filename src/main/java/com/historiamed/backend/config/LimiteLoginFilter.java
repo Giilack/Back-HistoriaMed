@@ -17,8 +17,9 @@ import jakarta.servlet.http.HttpServletResponse;
 /**
  * Deja pasar pocos inicios de sesión a la vez. Cada uno calcula un hash Argon2id (19 MiB y CPU) y mantiene abierta
  * una conexión a la base mientras dura: sin este tope, un pico de inicios de sesión agota la memoria de la instancia
- * gratuita (512 MB) o deja sin conexiones al resto del sistema. El exceso espera unos segundos su turno y, si no lo
- * consigue, recibe 503 para que lo intente de nuevo, en lugar de formar una cola de minutos.
+ * gratuita (512 MB) o deja sin conexiones al resto del sistema. El exceso espera hasta 15 s su turno (en Render,
+ * 3 inicios de sesión simultáneos tardan unos 8 s) y, si no lo consigue, recibe 503 para que lo intente de nuevo,
+ * en lugar de formar una cola de minutos.
  * No es un @Component a propósito: se registra solo dentro de la cadena de seguridad.
  */
 class LimiteLoginFilter extends OncePerRequestFilter {
