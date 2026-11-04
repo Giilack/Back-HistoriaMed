@@ -22,9 +22,13 @@ RUN useradd --system --no-create-home historiamed
 COPY --from=compilacion /app/target/backend-*.jar app.jar
 USER historiamed
 
-# Pensado para 512 MB de RAM (capa gratuita): la mitad para el montón de Java y el resto para clases, hilos y
-# el hash Argon2id de las contraseñas (19 MB por inicio de sesión).
-ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=50 -XX:+UseSerialGC -Xss512k"
+# Pensado para 512 MB de RAM (capa gratuita). Render reinicia la instancia si el proceso entero pasa de 512 MB,
+# no solo el montón: por eso cada zona de memoria de la JVM tiene un tope y la suma queda por debajo del límite.
+#   montón 40 % (~205 MB) + clases 160 MB + código compilado 64 MB + búferes directos 32 MB + hilos (~20 MB)
+# TieredStopAtLevel=1 compila solo con C1: usa menos memoria y arranca más rápido (mejor arranque en frío).
+# MALLOC_ARENA_MAX=2 evita que la biblioteca C reserve una zona de memoria por cada hilo.
+ENV MALLOC_ARENA_MAX=2
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=40 -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=64m -XX:MaxDirectMemorySize=32m -XX:TieredStopAtLevel=1 -XX:+UseSerialGC -Xss512k -XX:+ExitOnOutOfMemoryError"
 
 # El puerto lo indica la plataforma con la variable PORT (por defecto 8080)
 EXPOSE 8080
